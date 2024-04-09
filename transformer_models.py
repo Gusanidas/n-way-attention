@@ -88,7 +88,7 @@ class TriformerCubeBlock(TransformerBlock):
 class Transformer(nn.Module, PyTorchModelHubMixin):
     def __init__(self, config: dict):
         super().__init__()
-        self.cfg = Config(**config)
+        self.cfg = Config.from_dict(config)
         self.embed = Embed(self.cfg)
         self.pos_embed = PosEmbed(self.cfg)
         self.blocks = self._get_blocks(TransformerBlock)
