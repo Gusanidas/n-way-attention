@@ -3,11 +3,6 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-class MLP_TYPE(Enum):
-    NONE = 0 
-    LAST = 1 
-    ALL = 2  
-
 @dataclass
 class Config:
     d_model: int = 768
@@ -21,4 +16,4 @@ class Config:
     n_heads: int = 12
     n_layers: int = 12
     dropout: float = 0.05
-    mlp_type: MLP_TYPE = MLP_TYPE.ALL
+    mlp_type: str = "all"

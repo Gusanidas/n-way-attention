@@ -4,7 +4,7 @@ import torch as t
 import wandb
 from time import time
 from trainer import Trainer, TransformerTrainingArgs
-from cfgs import Config, MLP_TYPE
+from cfgs import Config
 from task_generators import generate_bool_expr, generate_arithmetic_expr, generate_lis, generate_subpal, generate_knapsack
 from dotenv import load_dotenv
 import os
@@ -46,7 +46,7 @@ def train_run(model = "transformer",
         d_mlp = kwargs.get("d_mlp", 192),
         n_heads = kwargs.get("n_heads", 3),
         n_layers = kwargs.get("n_layers", 2),
-        mlp_type=kwargs.get("mlp_type", MLP_TYPE.ALL),
+        mlp_type=kwargs.get("mlp_type", "all"),
     )
 
     trainer_args = TransformerTrainingArgs(
@@ -99,7 +99,7 @@ epochs = 33
 
 
 
-size2 = {"d_model": 128, "d_head": 32, "d_mlp": 512, "n_heads": 4, "batch_size":12, "lr": 6e-4, "mlp_type": MLP_TYPE.ALL, "decay_scheduler": "exponential"}
+size2 = {"d_model": 128, "d_head": 32, "d_mlp": 512, "n_heads": 4, "batch_size":12, "lr": 6e-4, "mlp_type": "none", "decay_scheduler": "exponential"}
 
 with open(filename, "a") as file:
     file.write(", ".join(f"{key}: {value}" for key, value in size2.items()) +"\n" + "\n")

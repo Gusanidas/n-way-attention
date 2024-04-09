@@ -7,7 +7,7 @@ from jaxtyping import Float, Int
 from trittention import Trittention
 from trittention_cube import TrittentionCube
 from attention import Attention
-from cfgs import Config, MLP_TYPE
+from cfgs import Config
 from huggingface_hub import PyTorchModelHubMixin
 
 class Embed(nn.Module):
@@ -96,12 +96,12 @@ class Transformer(nn.Module, PyTorchModelHubMixin):
         self.unembed = Unembed(cfg)
 
     def _get_blocks(self, block: Type[TransformerBlock]) -> nn.ModuleList:
-        if self.cfg.mlp_type == MLP_TYPE.NONE:
+        if self.cfg.mlp_type.lower() == "none":
             blocks = nn.ModuleList([block(self.cfg, has_mlp=False) for _ in range(self.cfg.n_layers)])
-        elif self.cfg.mlp_type == MLP_TYPE.LAST:
+        elif self.cfg.mlp_type.lower() == "last":
             blocks = nn.ModuleList([block(self.cfg, has_mlp=False) for _ in range(self.cfg.n_layers - 1)] +
                                    [block(self.cfg, has_mlp=True)])
-        else:  # Assuming MLP_TYPE.ALL or any other case defaults to this
+        else:  # Assuming ALL or any other case defaults to this
             blocks = nn.ModuleList([block(self.cfg, has_mlp=True) for _ in range(self.cfg.n_layers)])
         return blocks
 
