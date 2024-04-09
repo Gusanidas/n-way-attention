@@ -86,14 +86,14 @@ class TriformerCubeBlock(TransformerBlock):
 
 
 class Transformer(nn.Module, PyTorchModelHubMixin):
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: dict):
         super().__init__()
-        self.cfg = cfg
-        self.embed = Embed(cfg)
-        self.pos_embed = PosEmbed(cfg)
+        self.cfg = Config(**cfg)
+        self.embed = Embed(self.cfg)
+        self.pos_embed = PosEmbed(self.cfg)
         self.blocks = self._get_blocks(TransformerBlock)
-        self.ln_final = nn.LayerNorm(cfg.d_model)
-        self.unembed = Unembed(cfg)
+        self.ln_final = nn.LayerNorm(self.cfg.d_model)
+        self.unembed = Unembed(self.cfg)
 
     def _get_blocks(self, block: Type[TransformerBlock]) -> nn.ModuleList:
         if self.cfg.mlp_type.lower() == "none":

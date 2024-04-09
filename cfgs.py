@@ -1,6 +1,5 @@
 
-from dataclasses import dataclass
-from enum import Enum
+from dataclasses import dataclass, asdict, fields
 
 
 @dataclass
@@ -17,3 +16,13 @@ class Config:
     n_layers: int = 12
     dropout: float = 0.05
     mlp_type: str = "all"
+
+    def to_dict(self) -> dict:
+        """Converts the dataclass instance to a dictionary."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        valid_keys = {field.name for field in fields(cls)}
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        return cls(**filtered_data)
