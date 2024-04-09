@@ -113,11 +113,11 @@ class Transformer(nn.Module, PyTorchModelHubMixin):
         return logits
 
 class Triformer(Transformer):
-    def __init__(self, config: Config):
+    def __init__(self, config: dict):
         super().__init__(config)
         self.blocks = self._get_blocks(TriformerBlock)
 
 class TriformerCube(Transformer):
-    def __init__(self, config: Config):
+    def __init__(self, config: dict):
         super().__init__(config)
         self.blocks = self._get_blocks(TriformerCubeBlock)
