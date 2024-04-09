@@ -8,6 +8,7 @@ from trittention import Trittention
 from trittention_cube import TrittentionCube
 from attention import Attention
 from cfgs import Config, MLP_TYPE
+from huggingface_hub import PyTorchModelHubMixin
 
 class Embed(nn.Module):
     def __init__(self, cfg: Config):
@@ -84,7 +85,7 @@ class TriformerCubeBlock(TransformerBlock):
         self.attn = TrittentionCube(cfg)
 
 
-class Transformer(nn.Module):
+class Transformer(nn.Module, PyTorchModelHubMixin):
     def __init__(self, cfg: Config):
         super().__init__()
         self.cfg = cfg

@@ -108,21 +108,24 @@ def length_of_LIS(nums):
     return max(LIS)
 
 
-def generate_lis(depth=18, nmax=50, inc=0, *args, **kwargs):
-    """
-    Generates a random list and calculates its longest increasing subsequence (LIS),
-    returning a formatted string.
-    """
-    import random
-    inc = random.randint(0, 3)
-    arr = [random.randint(i*inc, nmax+i*inc) for i in range(depth)]
-    if inc == 3 and random.random() < 0.5:
-        arr = arr[::-1]
-    elif random.random() < 0.02:
+def generate_lis_arr(n=15, nmax=45):
+    arr = [random.randint(0, nmax) for i in range(n)]
+    l = random.randint(0,n)
+    if l == n:
         arr = sorted(arr)
-    elif random.random() < 0.02:
-        arr = sorted(arr, reverse=True)
-    r = length_of_LIS(arr)  
+    elif l>3:
+        idx = sorted(random.sample(range(n), k=l))
+        subs = sorted([arr[j] for j in idx])
+        for i, j in enumerate(idx):
+            arr[j] = subs[i]
+    if random.random()<0.3:
+        arr = arr[::-1]
+    return arr
+
+
+def generate_lis(depth=15, nmax = 50,*args, **kwargs):
+    arr = generate_lis_arr(n=depth, nmax=nmax)
+    r = length_of_LIS(arr)
     s = " "
     for e in arr:
         s += f"{e} , "
