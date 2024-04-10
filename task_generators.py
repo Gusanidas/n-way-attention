@@ -125,7 +125,7 @@ def generate_lis_arr(n=15, nmax=45):
     return arr
 
 
-def generate_lis(depth=15, nmax = 60):
+def generate_lis(depth=15, nmax = 100):
     arr = generate_lis_arr(n=depth, nmax=nmax)
     r = length_of_LIS(arr)
     s = " "

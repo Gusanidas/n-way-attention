@@ -25,7 +25,7 @@ device = t.device('cuda' if t.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 t0 = time()
 reference_gpt2 = HookedTransformer.from_pretrained("gpt2-small", fold_ln=False, center_unembed=False, center_writing_weights=False)
-filename = "results_listri.txt"
+filename = "results_listra.txt"
 
 def train_run(model = "transformer",
  generator = "arithmetic",
@@ -52,8 +52,8 @@ def train_run(model = "transformer",
         epochs = kwargs.get("epochs", 100),
         max_steps_per_epoch = kwargs.get("max_steps_per_epoch", 2500),
         lr = kwargs.get("lr", 4e-4),
-        weight_decay = kwargs.get("weight_decay", 1e-1),
-        wandb_project = kwargs.get("wandb_project", "trisolaris_listri"),
+        weight_decay = kwargs.get("weight_decay", 1e-2),
+        wandb_project = kwargs.get("wandb_project", "trisolaris_listra"),
         wandb_name = kwargs.get("wandb_name", None),
         decay_scheduler=kwargs.get("decay_scheduler", "cosine")
     )
@@ -93,11 +93,11 @@ def train_run(model = "transformer",
     return model
 
 
-epochs = 1
+epochs = 75
 
 
 
-size2 = {"d_model": 192, "d_head": 48, "d_mlp": 512, "n_heads": 4, "batch_size":12, "lr": 7e-4, "mlp_type": "none", "decay_scheduler": "exponential"}
+size2 = {"d_model": 128, "d_head": 32, "d_mlp": 512, "n_heads": 4, "batch_size":32, "lr": 3e-4, "mlp_type": "none", "decay_scheduler": "exponential"}
 
 with open(filename, "a") as file:
     file.write(", ".join(f"{key}: {value}" for key, value in size2.items()) +"\n" + "\n")
@@ -106,26 +106,31 @@ generator = "lis"
 n_layers = 2
 
 depth = 10
-train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
 #train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
-#train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
 
 depth = 12
-train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
 #train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
-#train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
 
 depth = 14
-train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
 #train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
-#train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
 
 depth = 16
-train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
 #train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
-#train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
 
 depth = 18
-train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
 #train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
-#train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+
+depth = 20
+#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+#train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
+train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
