@@ -109,7 +109,9 @@ def length_of_LIS(nums):
 
 
 def generate_lis_arr(n=15, nmax=45):
-    arr = [random.randint(0, nmax) for i in range(n)]
+    base = random.randint(0,nmax//2)
+    size = random.randint(nmax//3, nmax-base)
+    arr = random.sample(range(base,size+base), k=n)
     l = random.randint(0,n)
     if l == n:
         arr = sorted(arr)
@@ -123,7 +125,7 @@ def generate_lis_arr(n=15, nmax=45):
     return arr
 
 
-def generate_lis(depth=15, nmax = 50,*args, **kwargs):
+def generate_lis(depth=15, nmax = 60):
     arr = generate_lis_arr(n=depth, nmax=nmax)
     r = length_of_LIS(arr)
     s = " "
