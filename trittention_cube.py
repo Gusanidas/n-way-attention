@@ -87,7 +87,7 @@ class TrittentionCube(nn.Module):
         q_indices = t.arange(q).unsqueeze(0).unsqueeze(0).unsqueeze(0).unsqueeze(0)   # Shape: (1, 1, 1, q)
 
         if self.cfg.order_attn:
-            mask = (t_indices >= s_indices) | (t_indices >= q_indices) | (t_indices >= s_indices)
+            mask = (t_indices >= q_indices) | (s_indices >= q_indices) | (t_indices >= s_indices)
         else:
             mask = (t_indices >= q_indices) | (s_indices >= q_indices) | (t_indices == s_indices)
         mask = mask.to(attn_scores.device)
