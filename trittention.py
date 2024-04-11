@@ -85,7 +85,7 @@ class Trittention(nn.Module):
         s_indices = t.arange(s).unsqueeze(0).unsqueeze(0).unsqueeze(1).unsqueeze(-1)  # Shape: (1, 1, s, 1)
         q_indices = t.arange(q).unsqueeze(0).unsqueeze(0).unsqueeze(0).unsqueeze(0)   # Shape: (1, 1, 1, q)
 
-        if self.order_attn:
+        if self.cfg.order_attn:
             mask = (t_indices >= s_indices) | (t_indices >= q_indices) | (t_indices >= s_indices)
         else:
             mask = (t_indices >= q_indices) | (s_indices >= q_indices) | (t_indices == s_indices)
