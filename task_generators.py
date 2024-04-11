@@ -227,6 +227,18 @@ def generate_knapsack(depth=4):
     r = r[:-2] + f" . {total_weight} = {k}"
     return r
 
+def generate_rep(depth=1, *args, **kwargs):
+    prefix = ''.join(random.choice(string.ascii_lowercase+" ") for _ in range(random.randint(3*depth,4*depth)))
+    if random.random()<0.5:
+        s1 = ''.join(random.choice(string.ascii_lowercase+" ") for _ in range(random.randint(5*depth,8*depth)))
+    else:
+        s1 = ' '.join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(random.randint(4*depth,6*depth)))
+    if random.random()<0.4:
+        middle = ''.join(random.choice(string.ascii_lowercase+" ") for _ in range(random.randint(depth,3*depth)))
+    else:
+        middle = ""
+    return prefix+s1+middle+s1
+
 
 if __name__ == "__main__":
     print("bool_expr")

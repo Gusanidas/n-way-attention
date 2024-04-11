@@ -5,7 +5,7 @@ import wandb
 from time import time
 from trainer import Trainer, TransformerTrainingArgs
 from cfgs import Config
-from task_generators import generate_bool_expr, generate_arithmetic_expr, generate_lis, generate_subpal, generate_knapsack
+from task_generators import generate_bool_expr, generate_arithmetic_expr, generate_lis, generate_subpal, generate_knapsack, generate_rep
 from dotenv import load_dotenv
 import os
 
@@ -45,6 +45,8 @@ def train_run(model = "transformer",
         n_heads = kwargs.get("n_heads", 3),
         n_layers = kwargs.get("n_layers", 2),
         mlp_type=kwargs.get("mlp_type", "all"),
+        with_ln=kwargs.get("with_ln", True),
+        order_attn=kwargs.get("order_attn", False),
     )
 
     trainer_args = TransformerTrainingArgs(
@@ -55,7 +57,8 @@ def train_run(model = "transformer",
         weight_decay = kwargs.get("weight_decay", 1e-2),
         wandb_project = kwargs.get("wandb_project", "trisolaris_listra"),
         wandb_name = kwargs.get("wandb_name", None),
-        decay_scheduler=kwargs.get("decay_scheduler", "cosine")
+        decay_scheduler=kwargs.get("decay_scheduler", "cosine"),
+        only_last = kwargs.get("only_last", True),
     )
 
     if generator == "arithmetic":
@@ -68,6 +71,8 @@ def train_run(model = "transformer",
         generate_expr = generate_subpal
     elif generator == "knapsack":
         generate_expr = generate_knapsack
+    elif generator == "rep":
+        generate_expr = generate_rep
     else:
         raise ValueError("generator must be 'arithmetic', 'boolean', 'lis', 'subpal' or 'knapsack'")
     
