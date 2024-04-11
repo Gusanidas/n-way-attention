@@ -16,6 +16,7 @@ class Config:
     n_layers: int = 12
     dropout: float = 0.05
     mlp_type: str = "all"
+    with_ln: bool = True
 
     def to_dict(self) -> dict:
         """Converts the dataclass instance to a dictionary."""

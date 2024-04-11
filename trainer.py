@@ -5,7 +5,7 @@ from typing import List, Optional, Dict
 from torch.utils.data import DataLoader
 import wandb
 from time import time
-from utils_misc import get_log_probs_last, pad_cat
+from utils_misc import get_log_probs_last, pad_cat, get_log_probs
 
 device = t.device('cuda' if t.cuda.is_available() else 'cpu')
 
@@ -20,6 +20,7 @@ class TransformerTrainingArgs:
     wandb_project: Optional[str] = "day2-demotransformer"
     wandb_name: Optional[str] = None
     decay_scheduler: str = 'cosine'
+    only_last: bool = True
 
 
 
@@ -48,7 +49,10 @@ class Trainer:
     def training_step(self, batch: Dict[str, t.Tensor]) -> float:
         tokens = batch.to(device)
         logits = self.model(tokens)
-        loss = -get_log_probs_last(logits, tokens)
+        if self.args.only_last:
+            loss = -get_log_probs_last(logits, tokens)
+        else:
+            loss = -get_log_probs(logits, tokens)
         loss = loss.mean()
         loss.backward()
         self.optimizer.step()
@@ -57,11 +61,11 @@ class Trainer:
         wandb.log({"train_loss": loss.item()}, step=self.step)
         return loss.item()
 
-    def validation_step(self, batch: Dict[str, t.Tensor], only_last: bool = True) -> float:
+    def validation_step(self, batch: Dict[str, t.Tensor]) -> float:
         tokens = batch.to(device)
         logits = self.model(tokens)[:, :-1]
         predicted_tokens = logits.argmax(dim=-1)
-        if only_last:
+        if self.args.only_last:
             correct_predictions = (predicted_tokens[:, -1] == tokens[:, -1]).flatten()
         else:
             correct_predictions = (predicted_tokens == tokens[:, 1:]).flatten()

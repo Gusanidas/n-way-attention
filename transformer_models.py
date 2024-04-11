@@ -54,7 +54,7 @@ class TransformerBlock(nn.Module):
         self.cfg = cfg
         self.attn = Attention(cfg)
         self.dropout1 = nn.Dropout(cfg.dropout)
-        self.ln1 = nn.LayerNorm(cfg.d_model)
+        self.ln1 = nn.LayerNorm(cfg.d_model) if cfg.with_ln else nn.Identity()
         self.has_mlp = has_mlp
         if self.has_mlp:
             self.linear1 = nn.Linear(cfg.d_model, cfg.d_mlp)
@@ -62,7 +62,7 @@ class TransformerBlock(nn.Module):
             self.linear2 = nn.Linear(cfg.d_mlp, cfg.d_model)
             self.gelu = nn.GELU()
 
-            self.ln2 = nn.LayerNorm(cfg.d_model)
+            self.ln2 = nn.LayerNorm(cfg.d_model) if cfg.with_ln else nn.Identity()
             self.dropout2 = nn.Dropout(cfg.dropout)
 
     def forward(
@@ -92,7 +92,7 @@ class Transformer(nn.Module, PyTorchModelHubMixin):
         self.embed = Embed(self.cfg)
         self.pos_embed = PosEmbed(self.cfg)
         self.blocks = self._get_blocks(TransformerBlock)
-        self.ln_final = nn.LayerNorm(self.cfg.d_model)
+        self.ln_final = nn.LayerNorm(self.cfg.d_model) if self.cfg.with_ln else nn.Identity()
         self.unembed = Unembed(self.cfg)
 
     def _get_blocks(self, block: Type[TransformerBlock]) -> nn.ModuleList:
