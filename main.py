@@ -46,7 +46,7 @@ def train_run(model = "transformer",
         n_layers = kwargs.get("n_layers", 2),
         mlp_type=kwargs.get("mlp_type", "all"),
         with_ln=kwargs.get("with_ln", True),
-        order_attn=kwargs.get("order_attn", False),
+        order_attn=kwargs.get("order_attn", True),
     )
 
     trainer_args = TransformerTrainingArgs(

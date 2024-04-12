@@ -75,8 +75,8 @@ class TrittentionCube(nn.Module):
 
 
     def apply_causal_mask(
-        self, attn_scores: Float[Tensor, "batch n_heads query_pos key_pos"]
-    ) -> Float[Tensor, "batch n_heads query_pos key_pos"]:
+        self, attn_scores: Float[Tensor, "batch n_heads a_pos b_pos c_pos"]
+    ) -> Float[Tensor, "batch n_heads a_pos b_pos c_pos"]:
         '''
         Applies a causal mask to attention scores, and returns masked scores.
         '''

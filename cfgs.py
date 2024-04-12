@@ -17,7 +17,7 @@ class Config:
     dropout: float = 0.05
     mlp_type: str = "all"
     with_ln: bool = True
-    order_attn: bool = False
+    order_attn: bool = True
 
     def to_dict(self) -> dict:
         """Converts the dataclass instance to a dictionary."""

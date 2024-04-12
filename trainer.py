@@ -28,6 +28,7 @@ class Trainer:
     def __init__(self, args, model, train_list: List[t.Tensor], test_list: List[t.Tensor]):
         super().__init__()
         self.model = model
+        print(model)
         self.args = args
         self.optimizer = t.optim.AdamW(self.model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         self.step = 0
