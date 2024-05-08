@@ -1,3 +1,4 @@
+import torch
 import random
 from collections import defaultdict
 import string
@@ -110,7 +111,7 @@ def length_of_LIS(nums):
 
 def generate_lis_arr(n=15, nmax=45):
     base = random.randint(0,nmax//2)
-    size = random.randint(nmax//3, nmax-base)
+    size = random.randint(n+3, nmax-base)
     arr = random.sample(range(base,size+base), k=n)
     l = random.randint(0,n)
     if l == n:
@@ -125,7 +126,7 @@ def generate_lis_arr(n=15, nmax=45):
     return arr
 
 
-def generate_lis(depth=15, nmax = 100):
+def generate_lis_str(depth=15, nmax = 100):
     arr = generate_lis_arr(n=depth, nmax=nmax)
     r = length_of_LIS(arr)
     s = " "
@@ -134,6 +135,12 @@ def generate_lis(depth=15, nmax = 100):
     s = s[:-2] + f"= {r}"
     return s
 
+def generate_lis(device, n=8):
+    arr = generate_lis_arr(n=n,nmax=99)
+    lis = length_of_LIS(arr)
+    arr.append(100)
+    arr.append(lis)
+    return torch.tensor(arr, dtype=torch.int64, device=device).unsqueeze(0)
 
 def longestPalindromeSubseq(s: str) -> int:
     """
@@ -166,8 +173,7 @@ def make_palindrome(n):
 def get_subpal(n=10):
     """
     Generates a random string of length n and injects a palindrome of random length
-    into it at a random position. Adjusts the probability of palindrome injection based
-    on the string length.
+    into it at a random position.
     """
     x = random.random()
     s = random.choices(string.ascii_lowercase, k=n)
@@ -184,7 +190,7 @@ def get_subpal(n=10):
             s[idx] = s[idx+1]
     return ''.join(s)
 
-def generate_subpal(depth=10, *args, **kwargs):
+def generate_subpal_str(depth=10, *args, **kwargs):
     """
     Generates a string with a potential sub-palindrome and calculates the length
     of the longest palindromic subsequence. Returns a formatted string showing the
@@ -199,6 +205,21 @@ def generate_subpal(depth=10, *args, **kwargs):
     return r
 
 
+def generate_subpal(device, n=10):
+    """
+    Generates a string with a potential sub-palindrome and calculates the length
+    of the longest palindromic subsequence. Returns a formatted string showing the
+    generated string and the length of its longest palindromic subsequence.
+    """
+    if n>29:
+      return None
+    s = get_subpal(n=n)
+    d = longestPalindromeSubseq(s)
+    r = [ord(let)-67 for let in s]
+    r += [56] # equal sign
+    r += [d]
+    return torch.tensor(r, dtype=torch.int64, device=device).unsqueeze(0)
+
 def knapsack_01(values, weights, W):
     n = len(values)
     dp = [[0 for _ in range(W + 1)] for _ in range(n + 1)]
@@ -212,7 +233,7 @@ def knapsack_01(values, weights, W):
 
     return dp[n][W]
 
-def generate_knapsack(depth=4):
+def generate_knapsack_str(depth=4):
     n=depth
     weights = [random.randint(1,20) for i in range(n)]
     values = [random.randint(1,25) for i in range(n)]
@@ -239,6 +260,13 @@ def generate_rep(depth=1, *args, **kwargs):
         middle = ""
     return prefix+s1+middle+s1
 
+def generate_knapsack(device,n=4):
+    weights = [random.randint(2,20) for i in range(n)]
+    values = [random.randint(2,20) for i in range(n)]
+    total_weight = random.randint(3,n*20)
+    k = knapsack_01(values, weights, total_weight)
+    r = weights+[1]+values+[1,total_weight,0,k]
+    return torch.tensor(r, dtype=torch.int64, device=device).unsqueeze(0)
 
 if __name__ == "__main__":
     print("bool_expr")
