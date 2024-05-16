@@ -41,14 +41,14 @@ class LocalTrittention(nn.Module):
         self.window_size = getattr(cfg, 'window_size', 16)
         self.look_backward = getattr(cfg, 'look_backward', 1)
         self.pad_value = getattr(cfg, 'pad_value', 0)
-
         self.device = t.device('cuda' if t.cuda.is_available() else 'cpu')
+        self.causal_mask = self.get_causal_mask(self.cfg.n_ctx).to(self.device)
+
         self.register_buffer("IGNORE", t.tensor(-1e6, dtype=t.float32, device=self.device))
 
 
     def forward(self, normalized_resid_pre: t.Tensor) -> t.Tensor:
         bs, ts, ds = normalized_resid_pre.shape
-        device = self.device
         abcde = self.abcde(normalized_resid_pre)
 
         abcde = rearrange(abcde, 'b n (x h d) -> x b h n d', h=self.cfg.n_heads, x=5)
@@ -61,20 +61,11 @@ class LocalTrittention(nn.Module):
         
         a, b, c, d, e = map(lambda t: rearrange(t, 'b (n w) d -> b n w d', w = self.window_size), (a, b, c, d, e))
 
-        windows = ts // self.window_size 
-
         def compute_z(a,b,c,d,e):
-            seq = t.arange(ts, device=device)
-            b_t = rearrange(seq, '(w n) -> 1 w n', w=windows, n=self.window_size)
             look_around_kwargs = dict(backward=self.look_backward, forward=0, pad_value=self.pad_value)
 
-            bb_t = look_around(b_t, **look_around_kwargs)
-            ba_t = look_around(b_t, **look_around_kwargs)
-            causal_mask = ((rearrange(b_t, '... i -> ... i 1 1') < rearrange(bb_t, '... k -> ... 1 1 k')) |
-                           (rearrange(bb_t, '... k -> ... 1 1 k') <= rearrange(ba_t, '... j -> ... 1 j 1')))
-
             attn_pattern = t.einsum('b h n d, b h m d, b h l d -> b h n m l', c, look_around(a, **look_around_kwargs), look_around(b, **look_around_kwargs))
-            attn_pattern.masked_fill_(causal_mask.to(device), self.IGNORE)
+            attn_pattern.masked_fill_(self.causal_mask, self.IGNORE)
             attn_pattern[attn_pattern ==0] = self.IGNORE
             attn_pattern_shape = attn_pattern.shape
             attn_pattern = rearrange(attn_pattern, 'b h n m l -> b h n (m l)')
@@ -85,12 +76,85 @@ class LocalTrittention(nn.Module):
             z = t.einsum('b h n m l, b h m d -> b h n d', attn_score, look_around(d, **look_around_kwargs))
             z += t.einsum('b h n m l, b h l d -> b h n d', attn_score, look_around(e, **look_around_kwargs))
             return z
-        z = checkpoint(compute_z, a, b, c, d, e, use_reentrant=True)
+        z = checkpoint(compute_z, a, b, c, d, e, use_reentrant=False)
         z = rearrange(z, '(b h) w l d ->b (w l) (h d)', h=self.cfg.n_heads, b = bs)
         if self.autopad:
             z = z[:, :orig_seq_len, ...]
 
         out = self.W_O(z)
+        return out
+
+    def get_causal_mask(self, ts):
+            seq = t.arange(ts, device=self.device)
+            windows = ts // self.window_size 
+            b_t = rearrange(seq, '(w n) -> 1 w n', w=windows, n=self.window_size)
+            look_around_kwargs = dict(backward=self.look_backward, forward=0, pad_value=self.pad_value)
+
+            bb_t = look_around(b_t, **look_around_kwargs)
+            ba_t = look_around(b_t, **look_around_kwargs)
+            causal_mask = ((rearrange(b_t, '... i -> ... i 1 1') < rearrange(bb_t, '... k -> ... 1 1 k')) |
+                           (rearrange(bb_t, '... k -> ... 1 1 k') <= rearrange(ba_t, '... j -> ... 1 j 1')))
+            return causal_mask
+
+    def forward_2(self, normalized_resid_pre: t.Tensor) -> t.Tensor:
+        bs, ts, ds = normalized_resid_pre.shape
+        device = t.device('cuda' if t.cuda.is_available() else 'cpu')
+
+        abcde = self.abcde(normalized_resid_pre)
+
+        a, b, c, d, e = abcde.chunk(5, dim=-1)
+        a, b, c, d, e = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.cfg.n_heads), (a, b, c, d, e))
+
+        (a, packed_shape), (b, _), (c, _), (d, _), (e, _) = map(lambda t: pack([t], '* n d'), (a, b, c, d, e))
+
+        if self.autopad:
+            orig_seq_len = a.shape[1]
+            (needed_pad, a), (_, b), (_, c), (_, d), (_, e) = map(lambda t: pad_to_multiple(t, self.window_size, dim = -2), (a, b, c, d, e))
+        
+        a, b, c, d, e = map(lambda t: rearrange(t, 'b (n w) d -> b n w d', w = self.window_size), (a, b, c, d, e))
+
+        windows = ts // self.window_size 
+
+        seq = t.arange(ts, device = device)
+        b_t = rearrange(seq, '(w n) -> 1 w n', w = windows, n = self.window_size)
+
+        look_around_kwargs = dict(
+            backward =  self.look_backward,
+            forward = 0,
+            pad_value = self.pad_value
+        )
+
+        a, b, d, e = map(lambda t: look_around(t, **look_around_kwargs), (a, b, d, e))
+
+        bc_t = b_t
+        bb_t = look_around(b_t, **look_around_kwargs)
+        ba_t = look_around(b_t, **look_around_kwargs)
+
+        bc_t = rearrange(bc_t, '... i -> ... i 1 1')
+        ba_t = rearrange(ba_t, '... j -> ... 1 j 1')
+        bb_t = rearrange(bb_t, '... k -> ... 1 1 k')
+        causal_mask = (bc_t < bb_t) | (bb_t <= ba_t)
+        causal_mask = causal_mask.to(device)
+
+        attn_pattern = t.einsum('b h n d, b h m d, b h l d -> b h n m l', c, a, b)
+        attn_pattern[attn_pattern ==0] = self.IGNORE
+        attn_pattern.masked_fill_(causal_mask, self.IGNORE)
+        attn_pattern_shape = attn_pattern.shape
+        attn_pattern = rearrange(attn_pattern, 'b h n m l -> b h n (m l)')
+        attn_pattern = attn_pattern / self.cfg.d_head
+        attn_score = F.softmax(attn_pattern, dim = -1)
+        attn_score = t.reshape(attn_score, attn_pattern_shape)
+
+        #z = t.einsum('b h n m l, b h m d, b h l d -> b h n d', attn_score, d, e)
+        z = t.einsum('b h n m l, b h m d -> b h n d', attn_score, d) + t.einsum('b h n m l, b h l d -> b h n d', attn_score, e)
+        z = rearrange(z, 'b h l d -> b (h l) d')
+        z = rearrange(z, '(b h) t d -> b h t d', h = self.cfg.n_heads, b = bs)
+        zout = rearrange(z, 'b h t d -> b t (h d)')
+        if self.autopad:
+            zout = zout[:, :orig_seq_len, ...]
+
+        out = self.W_O(zout)
+        #z = rearrange(z, "b h t d -> b t h d")
         return out
 
 
@@ -161,25 +225,24 @@ if __name__ == "__main__":
     model.to(model.device)
     model.eval()
     x = t.randn(8, 1024, cfg.d_model)
-    out2, z2, *xx = model.forward_2(x)
-    out, z, *xx = model.forward(x)
-    z = rearrange(z, 'b t (h d) -> b t h d', h=cfg.n_heads)
+    out2, *xx = model.forward_2(x)
+    out, *xx = model.forward(x)
     print("++++===++++++++=====+++++=====+++++")
     print("++++===++++++++=====+++++=====+++++")
-    print(t.allclose(z, z2, atol=1e-3))
+    print(t.allclose(out, out2, atol=1e-3))
     # mean square difference
-    print(f"Mean square difference = {(z - z2).abs().mean()}")
+    print(f"Mean square difference = {(out - out2).abs().mean()}")
     print("++++===++++++++=====+++++=====+++++")
     print("++++===++++++++=====+++++=====+++++")
     # compate execution time:
     import time
     t0 = time.time()
     for _ in range(10):
-        out, z, *xx = model.forward(x)
-    out, z, *xx = model.forward(x)
+        out, *xx = model.forward(x)
+    out, *xx = model.forward(x)
     print(f"Time for forward = {time.time()-t0}")
     t0 = time.time()
     for _ in range(10):
-        out2, z2, *xx = model.forward_2(x)
-    out2, z2, *xx = model.forward_2(x)
+        out2, *xx = model.forward_2(x)
+    out2, *xx = model.forward_2(x)
     print(f"Time for forward_2 = {time.time()-t0}")
