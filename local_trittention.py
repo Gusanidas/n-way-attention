@@ -8,7 +8,7 @@ import torch.nn as nn
 from jaxtyping import Float
 from utils_misc import softmax
 from cfgs import Config
-
+from torch.utils.checkpoint import checkpoint
 
 
 def pad_to_multiple(tensor, multiple, dim=-1, value=0):
@@ -51,56 +51,59 @@ class LocalTrittention(nn.Module):
         abcde = self.abcde(normalized_resid_pre)
 
         a, b, c, d, e = abcde.chunk(5, dim=-1)
-        a, b, c, d, e = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.cfg.n_heads), (a, b, c, d, e))
+        def forward(a,b,c,d,e):
+            a, b, c, d, e = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.cfg.n_heads), (a, b, c, d, e))
 
-        (a, packed_shape), (b, _), (c, _), (d, _), (e, _) = map(lambda t: pack([t], '* n d'), (a, b, c, d, e))
+            (a, packed_shape), (b, _), (c, _), (d, _), (e, _) = map(lambda t: pack([t], '* n d'), (a, b, c, d, e))
 
-        if self.autopad:
-            orig_seq_len = a.shape[1]
-            (needed_pad, a), (_, b), (_, c), (_, d), (_, e) = map(lambda t: pad_to_multiple(t, self.window_size, dim = -2), (a, b, c, d, e))
+            if self.autopad:
+                orig_seq_len = a.shape[1]
+                (needed_pad, a), (_, b), (_, c), (_, d), (_, e) = map(lambda t: pad_to_multiple(t, self.window_size, dim = -2), (a, b, c, d, e))
         
-        a, b, c, d, e = map(lambda t: rearrange(t, 'b (n w) d -> b n w d', w = self.window_size), (a, b, c, d, e))
+            a, b, c, d, e = map(lambda t: rearrange(t, 'b (n w) d -> b n w d', w = self.window_size), (a, b, c, d, e))
 
-        windows = ts // self.window_size 
+            windows = ts // self.window_size 
 
-        seq = t.arange(ts, device = device)
-        b_t = rearrange(seq, '(w n) -> 1 w n', w = windows, n = self.window_size)
+            seq = t.arange(ts, device = device)
+            b_t = rearrange(seq, '(w n) -> 1 w n', w = windows, n = self.window_size)
 
-        look_around_kwargs = dict(
-            backward =  self.look_backward,
-            forward = 0,
-            pad_value = self.pad_value
-        )
+            look_around_kwargs = dict(
+                backward =  self.look_backward,
+                forward = 0,
+                pad_value = self.pad_value
+            )
 
-        a, b, d, e = map(lambda t: look_around(t, **look_around_kwargs), (a, b, d, e))
+            a, b, d, e = map(lambda t: look_around(t, **look_around_kwargs), (a, b, d, e))
 
-        bc_t = b_t
-        bb_t = look_around(b_t, **look_around_kwargs)
-        ba_t = look_around(b_t, **look_around_kwargs)
+            bc_t = b_t
+            bb_t = look_around(b_t, **look_around_kwargs)
+            ba_t = look_around(b_t, **look_around_kwargs)
 
-        bc_t = rearrange(bc_t, '... i -> ... i 1 1')
-        ba_t = rearrange(ba_t, '... j -> ... 1 j 1')
-        bb_t = rearrange(bb_t, '... k -> ... 1 1 k')
-        causal_mask = (bc_t < bb_t) | (bb_t <= ba_t)
+            bc_t = rearrange(bc_t, '... i -> ... i 1 1')
+            ba_t = rearrange(ba_t, '... j -> ... 1 j 1')
+            bb_t = rearrange(bb_t, '... k -> ... 1 1 k')
+            causal_mask = (bc_t < bb_t) | (bb_t <= ba_t)
 
-        attn_pattern = t.einsum('b h n d, b h m d, b h l d -> b h n m l', c, a, b)
-        attn_pattern.masked_fill_(causal_mask.to(device), self.IGNORE)
-        attn_pattern[attn_pattern ==0] = self.IGNORE
-        attn_pattern_shape = attn_pattern.shape
-        attn_pattern = rearrange(attn_pattern, 'b h n m l -> b h n (m l)')
-        attn_pattern = attn_pattern / self.cfg.d_head
-        attn_score = F.softmax(attn_pattern, dim = -1)
-        attn_score = t.reshape(attn_score, attn_pattern_shape)
+            attn_pattern = t.einsum('b h n d, b h m d, b h l d -> b h n m l', c, a, b)
+            attn_pattern.masked_fill_(causal_mask.to(device), self.IGNORE)
+            attn_pattern[attn_pattern ==0] = self.IGNORE
+            attn_pattern_shape = attn_pattern.shape
+            attn_pattern = rearrange(attn_pattern, 'b h n m l -> b h n (m l)')
+            attn_pattern = attn_pattern / self.cfg.d_head
+            attn_score = F.softmax(attn_pattern, dim = -1)
+            attn_score = t.reshape(attn_score, attn_pattern_shape)
 
-        z = t.einsum('b h n m l, b h m d -> b h n d', attn_score, d) + t.einsum('b h n m l, b h l d -> b h n d', attn_score, e)
-        z = rearrange(z, 'b h l d -> b (h l) d')
-        z = rearrange(z, '(b h) t d -> b h t d', h = self.cfg.n_heads, b = bs)
-        z = rearrange(z, 'b h t d -> b t (h d)')
-        if self.autopad:
-            z = z[:, :orig_seq_len, ...]
+            z = t.einsum('b h n m l, b h m d -> b h n d', attn_score, d) + t.einsum('b h n m l, b h l d -> b h n d', attn_score, e)
+            z = rearrange(z, 'b h l d -> b (h l) d')
+            z = rearrange(z, '(b h) t d -> b h t d', h = self.cfg.n_heads, b = bs)
+            z = rearrange(z, 'b h t d -> b t (h d)')
+            if self.autopad:
+                z = z[:, :orig_seq_len, ...]
 
-        out = self.W_O(z)
-        return out, z
+            out = self.W_O(z)
+            return out
+
+        return checkpoint(forward, a, b, c, d, e)
         
 
     def slow_tri(self, normalized_resid_pre):
@@ -136,7 +139,7 @@ class LocalTrittention(nn.Module):
                     scores = softmax(scores)
                     for j in range(len(scores)):
                         out[batch, t1, head, :] += scores[j]*vectors[j]
-            
+
         return out
 
 
