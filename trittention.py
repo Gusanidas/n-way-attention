@@ -3,7 +3,8 @@ import torch as t
 from torch import Tensor
 import torch.nn as nn
 from jaxtyping import Float
-from utils_misc import Config, softmax
+from utils_misc import softmax
+from cfgs import Config
 
 
 class Trittention(nn.Module):
