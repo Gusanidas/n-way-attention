@@ -36,12 +36,9 @@ class MixedAttention(nn.Module):
     def forward(self, normalized_resid_pre: t.Tensor) -> t.Tensor:
         q, k, v = self.qkv(normalized_resid_pre).chunk(3, dim=-1)
         q, k ,v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.cfg.n_heads), (q, k, v))
-        print(f"shape of q {q.shape}, shape of k {k.shape}, shape of v {v.shape}")
         q, k = apply_rotary_emb(q, freqs_cis = self.freqs_cis), apply_rotary_emb(k, freqs_cis = self.freqs_cis)
         z_attn = t.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.cfg.dropout if self.training else 0, is_causal=True)
-        print(f"shape of z_attn {z_attn.shape}")
         z_attn = rearrange(z_attn, 'b h n d -> b n (h d)')
-        print(f"shape of z_attn {z_attn.shape}")
 
         if self.abcde is not None:
             abcde = self.abcde(normalized_resid_pre)
@@ -93,6 +90,11 @@ if __name__ == '__main__':
     from cfgs import Config
     from utils_misc import precompute_freqs_cis
     cfg = Config()
+    model = MixedAttention(cfg, freqs_cis=precompute_freqs_cis(cfg.d_head, cfg.n_ctx))
+    x = t.randn(12, cfg.n_ctx, cfg.d_model)
+    y = model(x)
+    print(y.shape)
+    cfg = Config(dt_head=64, nt_heads=0)
     model = MixedAttention(cfg, freqs_cis=precompute_freqs_cis(cfg.d_head, cfg.n_ctx))
     x = t.randn(12, cfg.n_ctx, cfg.d_model)
     y = model(x)
