@@ -91,7 +91,7 @@ class LocalTrittention(nn.Module):
             z = z[:, :orig_seq_len, ...]
 
         out = self.W_O(z)
-        return out, z
+        return out
 
 
     def slow_tri(self, normalized_resid_pre, slow=False):
