@@ -19,6 +19,9 @@ class Config:
     with_ln: bool = True
     order_attn: bool = True
     attn_eq: bool = False
+    window_size: int = 16
+    look_backward: int = 1
+    pad_value: int = 0
 
     def to_dict(self) -> dict:
         """Converts the dataclass instance to a dictionary."""
