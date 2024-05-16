@@ -167,7 +167,8 @@ class TriformerMixedBlock(TransformerGatedBlock):
 class TriformerMixed(Transformer):
     def __init__(self, config: dict):
         super().__init__(config)
-        freqs_cis = precompute_freqs_cis(config.get('d_head',64), config.get('n_ctx', 1024))
+        device = t.device('cuda' if t.cuda.is_available() else 'cpu')
+        freqs_cis = precompute_freqs_cis(config.get('d_head',64), config.get('n_ctx', 1024)).to(device)
         self.blocks = self._get_blocks(TriformerMixedBlock, freqs_cis=freqs_cis)
 
 if __name__ == "__main__":
