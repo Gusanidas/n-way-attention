@@ -11,6 +11,7 @@ from attention import Attention
 from cfgs import Config
 from huggingface_hub import PyTorchModelHubMixin
 from utils_misc import precompute_freqs_cis
+from mixed_attention import MixedAttention
 
 class Embed(nn.Module):
     def __init__(self, cfg: Config):
@@ -161,7 +162,7 @@ class TransformerGated(Transformer):
 class TriformerMixedBlock(TransformerGatedBlock):
     def __init__(self, cfg: Config, has_mlp: bool = True, freqs_cis: t.Tensor = None):
         super().__init__(cfg, has_mlp=has_mlp)
-        self.attn = TrittentionCube(cfg, freqs_cis=freqs_cis)
+        self.attn = MixedAttention(cfg, freqs_cis=freqs_cis)
 
 class TriformerMixed(Transformer):
     def __init__(self, config: dict):
