@@ -1,6 +1,7 @@
 import einops
 import torch as t
 from torch import Tensor
+import torch.nn.functional as F
 from typing import Type
 import torch.nn as nn
 from jaxtyping import Float, Int
@@ -84,11 +85,6 @@ class TriformerCubeBlock(TransformerBlock):
         super().__init__(cfg, has_mlp=has_mlp)
         self.attn = TrittentionCube(cfg)
 
-class TriformerMixedBlock(TransformerBlock):
-    def __init__(self, cfg: Config, has_mlp: bool = True):
-        super().__init__(cfg, has_mlp=has_mlp)
-        self.attn = TrittentionCube(cfg)
-
 
 class Transformer(nn.Module, PyTorchModelHubMixin):
     def __init__(self, config: dict):
@@ -126,6 +122,45 @@ class TriformerCube(Transformer):
     def __init__(self, config: dict):
         super().__init__(config)
         self.blocks = self._get_blocks(TriformerCubeBlock)
+
+class TransformerGatedBlock(nn.Module):
+    def __init__(self, cfg: Config, has_mlp: bool = True):
+        super().__init__()
+        self.cfg = cfg
+        self.attn = Attention(cfg)
+        self.dropout1 = nn.Dropout(cfg.dropout)
+        self.ln1 = nn.LayerNorm(cfg.d_model) if cfg.with_ln else nn.Identity()
+        self.has_mlp = has_mlp
+        if self.has_mlp:
+            self.linear1 = nn.Linear(cfg.d_model, cfg.d_mlp)
+            self.linearg = nn.Linear(cfg.d_model, cfg.d_mlp)
+            self.dropout = nn.Dropout(cfg.dropout)
+            self.linear2 = nn.Linear(cfg.d_mlp, cfg.d_model)
+            self.gelu = nn.GELU()
+
+            self.ln2 = nn.LayerNorm(cfg.d_model) if cfg.with_ln else nn.Identity()
+            self.dropout2 = nn.Dropout(cfg.dropout)
+
+    def forward(
+        self, resid: Float[Tensor, "batch position d_model"]
+    ) -> Float[Tensor, "batch position d_model"]:
+        resid = self.dropout1(self.attn(self.ln1(resid))) + resid
+        if self.has_mlp:
+            mid_mlp = F.gelu(self.linearg(resid), approximate="tanh")*self.linear1(resid)
+            resid = self.dropout2(self.linear2(mid_mlp)) + resid
+        
+        return resid
+
+
+class TransformerGated(Transformer):
+    def __init__(self, config: dict):
+        super().__init__(config)
+        self.blocks = self._get_blocks(TransformerGatedBlock)
+
+class TriformerMixedBlock(TransformerGatedBlock):
+    def __init__(self, cfg: Config, has_mlp: bool = True):
+        super().__init__(cfg, has_mlp=has_mlp)
+        self.attn = TrittentionCube(cfg)
 
 class TriformerMixed(Transformer):
     def __init__(self, config: dict):

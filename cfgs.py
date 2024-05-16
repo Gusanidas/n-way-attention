@@ -11,8 +11,10 @@ class Config:
     init_range: float = 0.02
     n_ctx: int = 1024
     d_head: int = 64
+    dt_head: int = 64
     d_mlp: int = 3072
     n_heads: int = 12
+    nt_heads: int = 2
     n_layers: int = 12
     dropout: float = 0.05
     mlp_type: str = "all"

@@ -7,31 +7,16 @@ import torch as t
 from torch import Tensor
 import torch.nn as nn
 from jaxtyping import Float
-from utils_misc import softmax
+from utils_misc import softmax, look_around, pad_to_multiple
 from cfgs import Config
 from torch.utils.checkpoint import checkpoint
 
 
-def pad_to_multiple(tensor, multiple, dim=-1, value=0):
-    seqlen = tensor.shape[dim]
-    m = seqlen / multiple
-    if m.is_integer():
-        return False, tensor
-    remainder = math.ceil(m) * multiple - seqlen
-    pad_offset = (0,) * (-1 - dim) * 2
-    return True, F.pad(tensor, (*pad_offset, 0, remainder), value = value)
-
-def look_around(x, backward = 1, forward = 0, pad_value = -1, dim = 2):
-    t_s = x.shape[1]
-    dims = (len(x.shape) - dim) * (0, 0)
-    padded_x = F.pad(x, (*dims, backward, forward), value = pad_value)
-    tensors = [padded_x[:, ind:(ind + t_s), ...] for ind in range(forward + backward + 1)]
-    return t.cat(tensors, dim = dim)
 
 class LocalTrittention(nn.Module):
     IGNORE: Float[Tensor, ""]
 
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, freqs_cis: t.Tensor = None):
         super().__init__()
         self.cfg = cfg
 
@@ -43,6 +28,7 @@ class LocalTrittention(nn.Module):
         self.pad_value = getattr(cfg, 'pad_value', 0)
         self.device = t.device('cuda' if t.cuda.is_available() else 'cpu')
         self.causal_mask = self.get_causal_mask(self.cfg.n_ctx).to(self.device)
+        self.freqs_cis = freqs_cis
 
         self.register_buffer("IGNORE", t.tensor(-1e6, dtype=t.float32, device=self.device))
 
@@ -62,7 +48,7 @@ class LocalTrittention(nn.Module):
         a, b, c, d, e = map(lambda t: rearrange(t, 'b (n w) d -> b n w d', w = self.window_size), (a, b, c, d, e))
 
         def compute_z(a,b,c,d,e):
-            look_around_kwargs = dict(backward=self.look_backward, forward=0, pad_value=self.pad_value)
+            look_around_kwargs = dict(backward=self.cfg.look_backward, forward=0, pad_value=self.pad_value)
 
             attn_pattern = t.einsum('b h n d, b h m d, b h l d -> b h n m l', c, look_around(a, **look_around_kwargs), look_around(b, **look_around_kwargs))
             attn_pattern.masked_fill_(self.causal_mask, self.IGNORE)
@@ -85,16 +71,16 @@ class LocalTrittention(nn.Module):
         return out
 
     def get_causal_mask(self, ts):
-            seq = t.arange(ts, device=self.device)
-            windows = ts // self.window_size 
-            b_t = rearrange(seq, '(w n) -> 1 w n', w=windows, n=self.window_size)
-            look_around_kwargs = dict(backward=self.look_backward, forward=0, pad_value=self.pad_value)
+        seq = t.arange(ts, device=self.device)
+        windows = ts // self.window_size 
+        b_t = rearrange(seq, '(w n) -> 1 w n', w=windows, n=self.window_size)
+        look_around_kwargs = dict(backward=self.cfg.look_backward, forward=0, pad_value=self.pad_value)
 
-            bb_t = look_around(b_t, **look_around_kwargs)
-            ba_t = look_around(b_t, **look_around_kwargs)
-            causal_mask = ((rearrange(b_t, '... i -> ... i 1 1') < rearrange(bb_t, '... k -> ... 1 1 k')) |
-                           (rearrange(bb_t, '... k -> ... 1 1 k') <= rearrange(ba_t, '... j -> ... 1 j 1')))
-            return causal_mask
+        bb_t = look_around(b_t, **look_around_kwargs)
+        ba_t = look_around(b_t, **look_around_kwargs)
+        causal_mask = ((rearrange(b_t, '... i -> ... i 1 1') < rearrange(bb_t, '... k -> ... 1 1 k')) |
+                       (rearrange(bb_t, '... k -> ... 1 1 k') <= rearrange(ba_t, '... j -> ... 1 j 1')))
+        return causal_mask
 
     def forward_2(self, normalized_resid_pre: t.Tensor) -> t.Tensor:
         bs, ts, ds = normalized_resid_pre.shape
