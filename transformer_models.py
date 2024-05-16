@@ -10,6 +10,7 @@ from trittention_cube import TrittentionCube
 from attention import Attention
 from cfgs import Config
 from huggingface_hub import PyTorchModelHubMixin
+from utils_misc import precompute_freqs_cis
 
 class Embed(nn.Module):
     def __init__(self, cfg: Config):
@@ -96,14 +97,14 @@ class Transformer(nn.Module, PyTorchModelHubMixin):
         self.ln_final = nn.LayerNorm(self.cfg.d_model) if self.cfg.with_ln else nn.Identity()
         self.unembed = Unembed(self.cfg)
 
-    def _get_blocks(self, block: Type[TransformerBlock]) -> nn.ModuleList:
+    def _get_blocks(self, block: Type[TransformerBlock], **kwargs) -> nn.ModuleList:
         if self.cfg.mlp_type.lower() == "none":
-            blocks = nn.ModuleList([block(self.cfg, has_mlp=False) for _ in range(self.cfg.n_layers)])
+            blocks = nn.ModuleList([block(self.cfg, has_mlp=False, **kwargs) for _ in range(self.cfg.n_layers)])
         elif self.cfg.mlp_type.lower() == "last":
-            blocks = nn.ModuleList([block(self.cfg, has_mlp=False) for _ in range(self.cfg.n_layers - 1)] +
-                                   [block(self.cfg, has_mlp=True)])
+            blocks = nn.ModuleList([block(self.cfg, has_mlp=False, **kwargs) for _ in range(self.cfg.n_layers - 1)] +
+                                   [block(self.cfg, has_mlp=True, **kwargs)])
         else:  # Assuming ALL or any other case defaults to this
-            blocks = nn.ModuleList([block(self.cfg, has_mlp=True) for _ in range(self.cfg.n_layers)])
+            blocks = nn.ModuleList([block(self.cfg, has_mlp=True, **kwargs) for _ in range(self.cfg.n_layers)])
         return blocks
 
     def forward(self, tokens: Int[Tensor, "batch position"]) -> Float[Tensor, "batch position d_vocab"]:
@@ -158,11 +159,12 @@ class TransformerGated(Transformer):
         self.blocks = self._get_blocks(TransformerGatedBlock)
 
 class TriformerMixedBlock(TransformerGatedBlock):
-    def __init__(self, cfg: Config, has_mlp: bool = True):
+    def __init__(self, cfg: Config, has_mlp: bool = True, freqs_cis: t.Tensor = None):
         super().__init__(cfg, has_mlp=has_mlp)
-        self.attn = TrittentionCube(cfg)
+        self.attn = TrittentionCube(cfg, freqs_cis=freqs_cis)
 
 class TriformerMixed(Transformer):
     def __init__(self, config: dict):
         super().__init__(config)
-        self.blocks = self._get_blocks(TriformerMixedBlock)
+        freqs_cis = precompute_freqs_cis(config.d_head, config.n_ctx)
+        self.blocks = self._get_blocks(TriformerMixedBlock, freqs_cis=freqs_cis)
