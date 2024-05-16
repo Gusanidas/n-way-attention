@@ -167,5 +167,30 @@ class TriformerMixedBlock(TransformerGatedBlock):
 class TriformerMixed(Transformer):
     def __init__(self, config: dict):
         super().__init__(config)
-        freqs_cis = precompute_freqs_cis(config.d_head, config.n_ctx)
+        freqs_cis = precompute_freqs_cis(config.get('d_head',64), config.get('n_ctx', 1024))
         self.blocks = self._get_blocks(TriformerMixedBlock, freqs_cis=freqs_cis)
+
+if __name__ == "__main__":
+    model_cfg = Config(
+        d_model = 128,
+        debug = True,
+        layer_norm_eps = 1e-5,
+        d_vocab = 101,
+        init_range = 0.02,
+        n_ctx = 48,
+        d_head = 32,
+        dt_head = 32,
+        d_mlp = 512,
+        n_heads = 4,
+        nt_heads = 2,
+        n_layers = 4,
+        mlp_type="all",
+        with_ln=True,
+        order_attn=True,
+        attn_eq=True,
+    )
+
+    model = TriformerMixed(model_cfg.to_dict())
+    x = t.randint(0, 101, (32, 48))
+    y = model(x)
+    print(y.shape)
