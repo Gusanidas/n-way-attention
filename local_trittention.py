@@ -36,10 +36,10 @@ class LocalTrittention(nn.Module):
 
         self.abcde = nn.Linear(cfg.d_model, 5*cfg.d_head*cfg.n_heads)
         self.W_O = nn.Linear(cfg.d_head*cfg.n_heads, cfg.d_model)
-        self.autopad = True
-        self.window_size = 16
-        self.look_backward = 1
-        self.pad_value = 0
+        self.autopad = getattr(cfg, 'autopad', True)
+        self.window_size = getattr(cfg, 'window_size', 16)
+        self.look_backward = getattr(cfg, 'look_backward', 1)
+        self.pad_value = getattr(cfg, 'pad_value', 0)
 
         self.device = t.device('cuda' if t.cuda.is_available() else 'cpu')
         self.register_buffer("IGNORE", t.tensor(-1e6, dtype=t.float32, device=self.device))

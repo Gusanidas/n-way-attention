@@ -84,6 +84,11 @@ class TriformerCubeBlock(TransformerBlock):
         super().__init__(cfg, has_mlp=has_mlp)
         self.attn = TrittentionCube(cfg)
 
+class TriformerMixedBlock(TransformerBlock):
+    def __init__(self, cfg: Config, has_mlp: bool = True):
+        super().__init__(cfg, has_mlp=has_mlp)
+        self.attn = TrittentionCube(cfg)
+
 
 class Transformer(nn.Module, PyTorchModelHubMixin):
     def __init__(self, config: dict):
@@ -121,3 +126,8 @@ class TriformerCube(Transformer):
     def __init__(self, config: dict):
         super().__init__(config)
         self.blocks = self._get_blocks(TriformerCubeBlock)
+
+class TriformerMixed(Transformer):
+    def __init__(self, config: dict):
+        super().__init__(config)
+        self.blocks = self._get_blocks(TriformerMixedBlock)
