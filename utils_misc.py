@@ -50,6 +50,8 @@ def precompute_freqs_cis(dim: int,
 
 def apply_rotary_emb(x: t.Tensor, freqs_cis: t.Tensor) -> t.Tensor:
     """Applies the rotary embedding to the query and key tensors."""
+    b, _,ts, d = x.shape
+    freqs_cis = freqs_cis[:ts, :]
     x_ = t.view_as_complex(
         t.stack(t.chunk(x.float(), 2, dim=-1),
                     dim=-1))
