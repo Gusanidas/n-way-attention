@@ -34,6 +34,9 @@ class MixedAttention(nn.Module):
         self.IGNORE = t.tensor(-1e6, dtype=t.float32, device=self.device)
 
     def forward(self, normalized_resid_pre: t.Tensor) -> t.Tensor:
+        #recompute the mask
+        if 2*self.cfg.window_size != self.causal_mask.shape[-1]:
+            self.causal_mask = self.get_causal_mask(self.cfg.n_ctx).to(self.device)
         q, k, v = self.qkv(normalized_resid_pre).chunk(3, dim=-1)
         q, k ,v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.cfg.n_heads), (q, k, v))
         q, k = apply_rotary_emb(q, freqs_cis = self.freqs_cis), apply_rotary_emb(k, freqs_cis = self.freqs_cis)
