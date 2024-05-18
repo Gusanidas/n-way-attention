@@ -26,6 +26,7 @@ class MixedAttention(nn.Module):
         self.autopad = getattr(cfg, 'autopad', True)
         self.use_reentrant = getattr(cfg, 'use_reentrant', False)
         self.causal_mask = self.get_causal_mask(self.cfg.n_ctx).to(self.device)
+        self.ts_cm = self.cfg.n_ctx
 
         self.qkv = nn.Linear(cfg.d_model, 3*cfg.d_head*cfg.n_heads)
         self.abcde = nn.Linear(cfg.d_model, 5*cfg.dt_head*cfg.nt_heads) if cfg.nt_heads > 0 else None
@@ -34,9 +35,10 @@ class MixedAttention(nn.Module):
         self.IGNORE = t.tensor(-1e6, dtype=t.float32, device=self.device)
 
     def forward(self, normalized_resid_pre: t.Tensor) -> t.Tensor:
+        b, ts, ds = normalized_resid_pre.shape
         #recompute the mask
-        if 2*self.cfg.window_size != self.causal_mask.shape[-1]:
-            self.causal_mask = self.get_causal_mask(self.cfg.n_ctx).to(self.device)
+        if 2*self.cfg.window_size != self.causal_mask.shape[-1] or ts != self.ts_cm:
+            self.causal_mask = self.get_causal_mask(ts).to(self.device)
         q, k, v = self.qkv(normalized_resid_pre).chunk(3, dim=-1)
         q, k ,v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.cfg.n_heads), (q, k, v))
         q, k = apply_rotary_emb(q, freqs_cis = self.freqs_cis), apply_rotary_emb(k, freqs_cis = self.freqs_cis)
@@ -78,6 +80,7 @@ class MixedAttention(nn.Module):
         return z
 
     def get_causal_mask(self, ts):
+        self.ts_cm = ts
         seq = t.arange(ts, device=self.device)
         windows = ts // self.cfg.window_size 
         b_t = rearrange(seq, '(w n) -> 1 w n', w=windows, n=self.cfg.window_size)
