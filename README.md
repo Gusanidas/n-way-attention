@@ -101,7 +101,7 @@ In "compare.py" I initialize a layer at random and train another one to try to m
 
 ### Language Model
 
-The complexity of trittention is O(n^3), so its unusable for any kind of text sequence. I have implemented a local attention version in loca_trittention.py. And in mixed_attention.py an attention layer that has a number of local trittention heads and normal attention heads.
+The complexity of trittention is O(n^3), so its unusable for any kind of text sequence. I have implemented a local attention version in local_trittention.py. And in mixed_attention.py an attention layer that has a number of local trittention heads and normal attention heads.
 I am training some models with mixed attention, but I have limited compute and they are not very impressive so far.
 
 ## Acknowlegments
