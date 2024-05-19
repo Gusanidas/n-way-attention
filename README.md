@@ -1,3 +1,5 @@
+# N-Way-Attention
+
 In this repo I explore the concept of n-way-attention, in particular 3-way-attention.
 
 In the classical attention algorithm, the attention layer sums over every pair of tokens. We can also view it as, for every given token, we sum a term that depends on each of the other tokens (previous tokens in the autoregressive case) and the token itself. The idea of 3-way-attention is to sum over every trio of tokens. Or, for each given token to sum over every pair of tokens that has come before.
@@ -92,13 +94,23 @@ In this case all models had d_model = 192, d_head =32 and n_head=6. So the tritt
 The difference in performance is reduced (not completely) if a mlp layer is added.
 
 
-## Equivalence
+### Equivalence
 
 One natural question is to wonder if whatever trittention is doing, normal attention can do it in 2 layers (like induction) or more. If the difference is not too big, then trittention is not worth it.
 In "compare.py" I initialize a layer at random and train another one to try to match random inputs. I do not have a comprehensive table, but a quick result is that, for same number of **total** parameters, one layer trittentionCube learns two layers of attention better than viceversa.
 
-## Language Model
+### Language Model
 
 The complexity of trittention is O(n^3), so its unusable for any kind of text sequence. I have implemented a local attention version in loca_trittention.py. And in mixed_attention.py an attention layer that has a number of local trittention heads and normal attention heads.
 I am training some models with mixed attention, but I have limited compute and they are not very impressive so far.
+
+## Acknowlegments
+I have copied from the following repos:
+
+- [LucidRains Local Attention](https://github.com/lucidrains/local-attention/tree/master)
+- [Google Gemma PyTorch](https://github.com/google/gemma_pytorch/tree/main)
+- [Callum McDougall's ARENA 2.0](https://github.com/callummcdougall/ARENA_2.0)
+
+The concept I had not see it before, but that may be entirely my fault.
+
 
