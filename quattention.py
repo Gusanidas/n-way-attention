@@ -34,6 +34,8 @@ class Quattention(nn.Module):
         nn.init.normal_(self.W_D, std=self.cfg.init_range)
         nn.init.normal_(self.W_DE, std=self.cfg.init_range)
         nn.init.normal_(self.W_O, std=self.cfg.init_range)
+        
+        device = t.device('cuda' if t.cuda.is_available() else 'cpu')
         self.register_buffer("IGNORE", t.tensor(-1e6, dtype=t.float32, device=device))
 
 

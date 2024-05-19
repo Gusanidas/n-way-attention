@@ -27,6 +27,7 @@ class MixedAttention(nn.Module):
         self.use_reentrant = getattr(cfg, 'use_reentrant', False)
         self.causal_mask = self.get_causal_mask(self.cfg.n_ctx).to(self.device)
         self.ts_cm = self.cfg.n_ctx
+        self.checkpoint = getattr(cfg, 'checkpoint',False)
 
         self.qkv = nn.Linear(cfg.d_model, 3*cfg.d_head*cfg.n_heads)
         self.abcde = nn.Linear(cfg.d_model, 5*cfg.dt_head*cfg.nt_heads) if cfg.nt_heads > 0 else None
@@ -50,7 +51,10 @@ class MixedAttention(nn.Module):
             abcde = rearrange(abcde, 'b n (x h d) -> x b h n d', h=self.cfg.nt_heads, x=5)
             a, b, c, d, e = abcde[0], abcde[1], abcde[2], abcde[3], abcde[4]
             a, b, c = apply_rotary_emb(a, freqs_cis = self.freqs_cis), apply_rotary_emb(b, freqs_cis = self.freqs_cis), apply_rotary_emb(c, freqs_cis = self.freqs_cis)
-            z_tri = checkpoint(self.compute_tri_z, a, b, c, d, e, use_reentrant=self.use_reentrant)
+            if self.checkpoint:
+                z_tri = checkpoint(self.compute_tri_z, a, b, c, d, e, use_reentrant=self.use_reentrant)
+            else:
+                z_tri = self.compute_tri_z(a, b, c, d, e)
             z_attn = t.cat((z_attn, z_tri), dim=-1)
         
         out = self.out_p(z_attn)

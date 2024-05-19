@@ -131,7 +131,6 @@ class LocalTrittention(nn.Module):
         attn_score = F.softmax(attn_pattern, dim = -1)
         attn_score = t.reshape(attn_score, attn_pattern_shape)
 
-        #z = t.einsum('b h n m l, b h m d, b h l d -> b h n d', attn_score, d, e)
         z = t.einsum('b h n m l, b h m d -> b h n d', attn_score, d) + t.einsum('b h n m l, b h l d -> b h n d', attn_score, e)
         z = rearrange(z, 'b h l d -> b (h l) d')
         z = rearrange(z, '(b h) t d -> b h t d', h = self.cfg.n_heads, b = bs)
@@ -140,7 +139,6 @@ class LocalTrittention(nn.Module):
             zout = zout[:, :orig_seq_len, ...]
 
         out = self.W_O(zout)
-        #z = rearrange(z, "b h t d -> b t h d")
         return out
 
 
