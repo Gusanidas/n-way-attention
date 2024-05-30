@@ -35,14 +35,14 @@ def tokenize_fine(examples):
     return r
 
 
-batch_size = 32
+batch_size = 10
 
 #dataset = load_dataset("HuggingFaceFW/fineweb", name="sample-10BT", split="train", streaming=True)
 dataset = load_dataset("Locutusque/UltraTextbooks", split="train")
 tokenizer = AutoTokenizer.from_pretrained('mistralai/Mistral-7B-v0.1')
 tokenizer.add_special_tokens({'pad_token': '[PAD]'})
 #tokenized_train_dataset = dataset.map(tokenize_fine)
-train_dataset = dataset.select(range(1_000_000))
+train_dataset = dataset.select(range(2_250_000, 2_500_000))
 
 #tokenized_train_dataset = dataset.map(tokenize_function)#, batched=True, num_proc=4)
 tokenized_train_dataset = train_dataset.map(tokenize_fine)#, batched=True, num_proc=4
@@ -70,7 +70,7 @@ model_cfg = Config(
     autopad=True,
 )
 
-model = TriformerMixed.from_pretrained('Gusanidas/mixnet_12')
+model = TriformerMixed.from_pretrained('Gusanidas/mixnet_12b')
 #model = TriformerMixed(model_cfg.to_dict())
 print(model)
 print(model.cfg)
@@ -80,9 +80,9 @@ model.to(device)
 model.cfg.window_size = 32
 num_epochs = 4
 lr = 3e-4
-max_lr = 4e-5
-accumulation_steps = 4
-total_steps = 7000
+max_lr = 5e-5
+accumulation_steps = 25
+total_steps = 3000
 warmup_steps = 160
 validation_interval = 2000
 validation_steps = 400
@@ -98,6 +98,7 @@ scheduler = torch.optim.lr_scheduler.OneCycleLR(
 total_count = 0
 t0 = time.time()
 rl = 0
+rl2 = 0
 for epoch in range(num_epochs):
     model.train() 
     for batch_idx, data in enumerate(train_dataloader):
@@ -119,16 +120,17 @@ for epoch in range(num_epochs):
             scheduler.step()
 
         rl = loss.item() * accumulation_steps*0.02 + rl*0.98
+        rl2 = loss.item() * accumulation_steps*0.0004 + rl2*0.9996
         if batch_idx % 99 == 0:
             padding = tokens == tokenizer.pad_token_id  
             current_lr = scheduler.get_last_lr()
-            print(f'Batch {batch_idx}, Loss: {loss.item() * accumulation_steps}, Time = {time.time() - t0}, LR = {current_lr}, rl = {rl}, total_step = {total_count}')
+            print(f'Batch {batch_idx}, Loss: {loss.item() * accumulation_steps}, Time = {time.time() - t0}, LR = {current_lr}, rl = {rl}, rl2 = {rl2} total_step = {total_count}')
 
         if total_count % 1000 == 999:
-            model.push_to_hub("mixnet_12a", config=model_cfg.to_dict())
+            model.push_to_hub("mixnet_12", config=model_cfg.to_dict())
 
         if batch_idx>12000:
             break
 
-model.push_to_hub("mixnet_12a", config=model_cfg.to_dict())
+model.push_to_hub("mixnet_12", config=model_cfg.to_dict())
 
