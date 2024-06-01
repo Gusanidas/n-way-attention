@@ -48,13 +48,13 @@ The other way I have implemented it (see trittention_cube.py) can be understood 
 The score:
 
 $$
-{score} = K_{i,j,h} \cdot q_h \cdot k_i \cdot k_j
+{score} = K_{i,j,h} \cdot token_h \cdot token_i \cdot token_j
 $$
 
 The value:
 
 $$
-{value} = V_{i,j,k} \cdot v_i \cdot v_j
+{value} = V_{i,j,k} \cdot token_i \cdot token_j
 $$
 
 And new_token:
