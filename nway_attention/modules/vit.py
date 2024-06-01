@@ -81,6 +81,7 @@ class Trittention(nn.Module):
         attn_score = attn_score.softmax(dim=-1)
         attn_score = rearrange(attn_score, "b n p1 (p2 p3) -> b n p1 p2 p3", p2 = t, p3 = t) 
         z = torch.einsum('bnqlr, blnd -> bnqd', attn_score, d) + torch.einsum('bnqlr, brnd -> bnqd', attn_score, e)
+        z = self.dropout(z)
         z = rearrange(z, 'b n q d -> b q (n d)')
         return self.out_p(z)
 
@@ -286,7 +287,7 @@ class MixedAttention(nn.Module):
         self.dim_head = dim_head
         self.dropout = dropout
         self.attn = Attention(dim, heads = a_heads, dim_head = dim_head, dropout = dropout)
-        self.cube_tri = TrittentionCube(dim, heads = c_heads, dim_head = dim_head, dropout = dropout)
+        self.cube_tri = Trittention(dim, heads = c_heads, dim_head = dim_head, dropout = dropout)
     def forward(self, x):
         x = self.attn(x) + self.cube_tri(x)
         return x
