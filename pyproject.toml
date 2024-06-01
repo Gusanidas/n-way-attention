@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "n-way-attention"
+version = "0.1.0"
+description = "Implementation of n-way attention layers in Python with different frameworks"
+authors = [
+    {name = "Alejandro Alvarez", email = "alejandrogus792@gmail.com"},
+    {name = "Sergio Alvarez", email = "sergioalvarezbalanya1995@gmail.com"},
+]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+torch = "^2.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
