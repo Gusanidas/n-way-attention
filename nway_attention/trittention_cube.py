@@ -3,7 +3,8 @@ import torch as t
 from torch import Tensor
 import torch.nn as nn
 from jaxtyping import Float
-from utils_misc import Config
+
+from nway_attention.utils_misc import Config
 
 
 class TrittentionCube(nn.Module):

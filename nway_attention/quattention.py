@@ -4,7 +4,7 @@ from torch import Tensor
 import torch.nn as nn
 import numpy as np
 from jaxtyping import Float
-from examples.cfgs import Config
+from nway_attention.cfgs import Config
 
 class Quattention(nn.Module):
     IGNORE: Float[Tensor, ""]

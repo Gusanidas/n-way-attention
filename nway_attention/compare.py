@@ -1,4 +1,4 @@
-from examples.cfgs import Config
+from nway_attention.cfgs import Config
 from trittention_cube import TrittentionCube
 from trittention import Trittention
 from attention import Attention

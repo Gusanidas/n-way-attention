@@ -5,13 +5,14 @@ import torch.nn.functional as F
 from typing import Type
 import torch.nn as nn
 from jaxtyping import Float, Int
-from trittention import Trittention
-from trittention_cube import TrittentionCube
-from attention import Attention
-from examples.cfgs import Config
 from huggingface_hub import PyTorchModelHubMixin
-from utils_misc import precompute_freqs_cis
-from mixed_attention import MixedAttention
+
+from nway_attention.trittention import Trittention
+from nway_attention.trittention_cube import TrittentionCube
+from nway_attention.attention import Attention
+from nway_attention.cfgs import Config
+from nway_attention.utils_misc import precompute_freqs_cis
+from nway_attention.mixed_attention import MixedAttention
 
 class Embed(nn.Module):
     def __init__(self, cfg: Config):

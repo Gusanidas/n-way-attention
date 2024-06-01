@@ -8,7 +8,7 @@ from torch import Tensor
 import torch.nn as nn
 from jaxtyping import Float
 from utils_misc import softmax, look_around, pad_to_multiple
-from examples.cfgs import Config
+from nway_attention.cfgs import Config
 from torch.utils.checkpoint import checkpoint
 
 
