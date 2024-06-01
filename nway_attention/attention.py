@@ -4,7 +4,7 @@ from torch import Tensor
 import torch.nn as nn
 import numpy as np
 from jaxtyping import Float
-from cfgs import Config
+from nway_attention.cfgs import Config
 
 device = t.device('cuda' if t.cuda.is_available() else 'cpu')
 

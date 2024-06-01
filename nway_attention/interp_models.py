@@ -3,11 +3,12 @@ import torch as t
 from torch import Tensor
 import torch.nn as nn
 from jaxtyping import Float
-from utils_misc import Config
-from transformer_models import TransformerBlock, Transformer
-from transformer_models import TriformerCubeBlock as TriformerCubeBlockOG
-from transformer_models import TrittentionCube as TrittentionCubeOG
-from transformer_models import TriformerCube as TriformerCubeOG
+
+from nway_attention.utils_misc import Config
+from nway_attention.transformer_models import TransformerBlock, Transformer
+from nway_attention.transformer_models import TriformerCubeBlock as TriformerCubeBlockOG
+from nway_attention.transformer_models import TrittentionCube as TrittentionCubeOG
+from nway_attention.transformer_models import TriformerCube as TriformerCubeOG
 
 
 class MH_Linear(nn.Module):

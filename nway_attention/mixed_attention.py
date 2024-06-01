@@ -1,17 +1,12 @@
-import einops
-from einops import rearrange, reduce, repeat, pack, unpack
-import math
+from einops import rearrange, pack
 import torch.nn.functional as F
 import torch as t
 from torch import Tensor
 import torch.nn as nn
-from jaxtyping import Float
-from utils_misc import apply_rotary_emb, pad_to_multiple, look_around
-from cfgs import Config
-from local_trittention import LocalTrittention
-from attention import Attention
 from torch.utils.checkpoint import checkpoint
-
+from jaxtyping import Float
+from nway_attention.utils_misc import apply_rotary_emb, pad_to_multiple, look_around
+from nway_attention.cfgs import Config
 
 
 class MixedAttention(nn.Module):
@@ -97,7 +92,7 @@ class MixedAttention(nn.Module):
         return causal_mask
     
 if __name__ == '__main__':
-    from cfgs import Config
+    from nway_attention.cfgs import Config
     from utils_misc import precompute_freqs_cis
     cfg = Config()
     model = MixedAttention(cfg, freqs_cis=precompute_freqs_cis(cfg.d_head, cfg.n_ctx))

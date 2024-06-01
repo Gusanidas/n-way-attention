@@ -1,4 +1,4 @@
-from cfgs import Config
+from nway_attention.cfgs import Config
 from transformer_models import TriformerMixed
 from utils_misc import get_log_probs
 from datasets import load_dataset
