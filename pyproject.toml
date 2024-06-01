@@ -1,10 +1,10 @@
 [tool.poetry]
-name = "n-way-attention"
+name = "nway_attention"
 version = "0.1.0"
 description = "Implementation of n-way attention layers in Python with different frameworks"
 authors = [
-    {name = "Alejandro Alvarez", email = "alejandrogus792@gmail.com"},
-    {name = "Sergio Alvarez", email = "sergioalvarezbalanya1995@gmail.com"},
+    "Alejandro Alvarez <alejandrogus792@gmail.com>",
+    "Sergio Alvarez <sergioalvarezbalanya1995@gmail.com>",
 ]
 license = "MIT"
 readme = "README.md"
@@ -12,7 +12,21 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.9"
 torch = "^2.2"
+einops = "^0.8.0"
+jaxtyping = "^0.2.29"
 
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.2.1"
+
+
+[tool.poetry.group.optional.dependencies]
+jupyter = "^1.0.0"
+transformers = "^4.41.2"
+wandb = "^0.17.0"
+nnsight = "^0.2.19"
+plotly = "^5.22.0"
+pandas = "^2.2.2"
 
 [build-system]
 requires = ["poetry-core"]
