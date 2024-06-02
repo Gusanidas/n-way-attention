@@ -1,15 +1,6 @@
-from nway_attention.cfgs import Config
-from trittention_cube import TrittentionCube
-from trittention import Trittention
-from attention import Attention
-from transformer_models import TransformerBlock, Transformer, TriformerCube, Triformer, TriformerBlock, TriformerCubeBlock
-
-
 import time
 import torch
-import torch.nn as nn
-import torch.optim as optim
-
+from torch import nn, optim
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def count_parameters(model):
@@ -51,36 +42,3 @@ def train_student_with_teacher(student_model, teacher_model, hidden_size, num_ep
 
         if (epoch + 1) % 100 == 0:
             print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.8f}, time = {time.time()-t0}')
-
-model_cfg = Config(
-    d_model=256,
-    debug=True,
-    layer_norm_eps=1e-5,
-    d_vocab=8192,
-    init_range=0.02,
-    n_ctx=42,
-    d_head=32,           
-    d_mlp=288,          
-    n_heads=8,         
-    n_layers=3,       
-    mlp_type="all",
-    order_attn = True,
-    attn_eq=True,
-    with_ln=True,
-)
-
-#a1 = Attention(model_cfg)
-#a2 = Attention(model_cfg)
-#tc1 = TrittentionCube(model_cfg)
-#tc2 = TrittentionCube(model_cfg)
-#t1 = Trittention(model_cfg)
-#t2 = Trittention(model_cfg)
-#tb1 = TransformerBlock(model_cfg)
-#stacked_attention = nn.Sequential(Attention(model_cfg), Attention(model_cfg))
-
-stb1 = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(4)])
-stri = nn.Sequential(*[TriformerBlock(model_cfg, has_mlp=False) for _ in range(2)])
-train_student_with_teacher(stri, stb1, 256, num_epochs=702)
-stb1 = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(4)])
-stri = nn.Sequential(*[TriformerBlock(model_cfg, has_mlp=False) for _ in range(2)])
-train_student_with_teacher(stb1, stri, 256)

@@ -5,10 +5,10 @@ import torch.nn as nn
 from jaxtyping import Float
 
 from nway_attention.utils_misc import Config
-from nway_attention.transformer_models import TransformerBlock, Transformer
-from nway_attention.transformer_models import TriformerCubeBlock as TriformerCubeBlockOG
-from nway_attention.transformer_models import TrittentionCube as TrittentionCubeOG
-from nway_attention.transformer_models import TriformerCube as TriformerCubeOG
+from nway_attention.modules.transformer_models import TransformerBlock, Transformer
+from nway_attention.modules.transformer_models import TriformerCubeBlock as TriformerCubeBlockOG
+from nway_attention.modules.transformer_models import TrittentionCube as TrittentionCubeOG
+from nway_attention.modules.transformer_models import TriformerCube as TriformerCubeOG
 
 
 class MH_Linear(nn.Module):

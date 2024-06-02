@@ -14,29 +14,23 @@ class Trittention(nn.Module):
     def __init__(self, cfg: Config):
         super().__init__()
         self.cfg = cfg
-        self.W_A = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
-        self.W_B = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
-        self.W_C = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
-        self.W_DE = nn.Parameter(t.empty((cfg.n_heads, 2*cfg.d_model, cfg.d_head)))
-        self.W_D = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
-        self.W_E = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
+        self.W_K1 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
+        self.W_K2 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
+        self.W_Q = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
+        self.W_V12 = nn.Parameter(t.empty((cfg.n_heads, 2*cfg.d_model, cfg.d_head)))
 
         self.W_O = nn.Parameter(t.empty((cfg.n_heads, cfg.d_head, cfg.d_model)))
 
-        self.b_A = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
-        self.b_B = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
-        self.b_C = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
-        self.b_D = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
-        self.b_E = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
-        self.b_DE = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
+        self.b_K1 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
+        self.b_K2 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
+        self.b_Q = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
+        self.b_V12 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
         self.b_O = nn.Parameter(t.zeros((cfg.d_model)))
 
-        nn.init.normal_(self.W_A, std=self.cfg.init_range)
-        nn.init.normal_(self.W_B, std=self.cfg.init_range)
-        nn.init.normal_(self.W_C, std=self.cfg.init_range)
-        nn.init.normal_(self.W_D, std=self.cfg.init_range)
-        nn.init.normal_(self.W_E, std=self.cfg.init_range)
-        nn.init.normal_(self.W_DE, std=self.cfg.init_range)
+        nn.init.normal_(self.W_K1, std=self.cfg.init_range)
+        nn.init.normal_(self.W_K2, std=self.cfg.init_range)
+        nn.init.normal_(self.W_Q, std=self.cfg.init_range)
+        nn.init.normal_(self.W_V12, std=self.cfg.init_range)
         nn.init.normal_(self.W_O, std=self.cfg.init_range)
         device = t.device('cuda' if t.cuda.is_available() else 'cpu')
         self.register_buffer("IGNORE", t.tensor(-1e6, dtype=t.float32, device=device))
@@ -45,20 +39,20 @@ class Trittention(nn.Module):
     def forward(self, normalized_resid_pre: t.Tensor) -> t.Tensor:
         # Assuming self.W_Q, self.W_K, self.W_V, and self.W_O are parameter matrices of the model
         bs, ts, ds = normalized_resid_pre.shape
-        a = t.einsum('ndh,bpd->bpnh', self.W_A, normalized_resid_pre) + self.b_A
-        b = t.einsum('ndh,bpd->bpnh', self.W_B, normalized_resid_pre) + self.b_B
-        c = t.einsum('ndh,bpd->bpnh', self.W_C, normalized_resid_pre) + self.b_C
+        k1 = t.einsum('ndh,bpd->bpnh', self.W_K1, normalized_resid_pre) + self.b_K1
+        k2 = t.einsum('ndh,bpd->bpnh', self.W_K2, normalized_resid_pre) + self.b_K2
+        q = t.einsum('ndh,bpd->bpnh', self.W_Q, normalized_resid_pre) + self.b_Q
 
-        d = normalized_resid_pre.unsqueeze(2).expand(-1,-1,ts,-1)
-        e = normalized_resid_pre.unsqueeze(1).expand(-1,ts,-1,-1)
-        de = t.cat((d,e), dim=-1)
+        v1 = normalized_resid_pre.unsqueeze(2).expand(-1,-1,ts,-1)
+        v2 = normalized_resid_pre.unsqueeze(1).expand(-1,ts,-1,-1)
+        v12 = t.cat((v1,v2), dim=-1)
 
-        #print(f"shpae of de {de.shape}, shape of DE {self.W_DE.shape}, bias = {self.b_DE.shape}")
+        #print(f"shpae of de {de.shape}, shape of DE {self.W_V12.shape}, bias = {self.b_V12.shape}")
 
-        v = t.einsum('ndh,bpsd->bpsnh', self.W_DE, de)
-        v += self.b_DE
+        v = t.einsum('ndh,bpsd->bpsnh', self.W_V12, v12)
+        v += self.b_V12
 
-        attn_score = t.einsum("bsnh, btnh, bqnh -> bnstq", a,b,c)
+        attn_score = t.einsum("bsnh, btnh, bqnh -> bnstq", k1,k2,q)
         attn_score = self.apply_causal_mask(attn_score)
 
 
@@ -113,15 +107,15 @@ class Trittention(nn.Module):
         for bi in range(bs):
             for i in range(self.cfg.n_heads):
                 for t1 in range(ts):
-                    c = normalized_resid_pre[bi,t1,:] @ self.W_C[i,:,:] + self.b_C[i,:]
+                    c = normalized_resid_pre[bi,t1,:] @ self.W_Q[i,:,:] + self.b_Q[i,:]
                     scores, vectors = [], []
                     for t2 in range(ts):
                         for t3 in range(ts):
-                            b = normalized_resid_pre[bi,t2,:] @ self.W_B[i,:,:] + self.b_B[i,:]
-                            a = normalized_resid_pre[bi,t3,:] @ self.W_A[i,:,:] + self.b_A[i,:]
+                            b = normalized_resid_pre[bi,t2,:] @ self.W_K2[i,:,:] + self.b_K2[i,:]
+                            a = normalized_resid_pre[bi,t3,:] @ self.W_K1[i,:,:] + self.b_K1[i,:]
                             score = self.slow_tri_dot(a,b,c)
                             cv = t.cat((normalized_resid_pre[bi, t3,:], normalized_resid_pre[bi, t2,:]), dim=-1)
-                            v = cv @ self.W_DE[i,:,:] + self.b_DE[i,:]
+                            v = cv @ self.W_V12[i,:,:] + self.b_V12[i,:]
                             if t2 == t3 or t2>=t1 or t3>=t1:
                                 pass
                             else:
