@@ -27,6 +27,9 @@ wandb = "^0.17.0"
 nnsight = "^0.2.19"
 plotly = "^5.22.0"
 pandas = "^2.2.2"
+datasets = "^2.19.1"
+jax = "^0.4.28"
+flax = "^0.8.4"
 
 [build-system]
 requires = ["poetry-core"]
