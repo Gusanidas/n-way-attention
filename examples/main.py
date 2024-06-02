@@ -1,11 +1,11 @@
-from nway_attention.transformer_models import Transformer, Triformer, TriformerCube
+from nway_attention.modules.transformer_models import Transformer, Triformer, TriformerCube
 from transformer_lens import HookedTransformer
 import torch as t
 import wandb
 from time import time
-from nway_attention.trainer import Trainer, TransformerTrainingArgs
+from nway_attention.train.trainer import Trainer, TransformerTrainingArgs
 from nway_attention.cfgs import Config
-from nway_attention.task_generators import generate_bool_expr, generate_arithmetic_expr, generate_lis, generate_subpal, generate_knapsack, generate_rep
+from nway_attention.train.task_generators import generate_bool_expr, generate_arithmetic_expr, generate_lis, generate_subpal, generate_knapsack, generate_rep
 from dotenv import load_dotenv
 import os
 

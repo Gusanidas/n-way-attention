@@ -1,10 +1,10 @@
 import torch.nn as nn
 
 from nway_attention.cfgs import Config
-from nway_attention.trittention_cube import TrittentionCube
-from nway_attention.trittention import Trittention
-from nway_attention.attention import Attention
-from nway_attention.transformer_models import TransformerBlock, Transformer, TriformerCube, Triformer, TriformerBlock, TriformerCubeBlock
+from nway_attention.modules.trittention_cube import TrittentionCube
+from nway_attention.modules.trittention import Trittention
+from nway_attention.modules.attention import Attention
+from nway_attention.modules.transformer_models import TransformerBlock, Transformer, TriformerCube, Triformer, TriformerBlock, TriformerCubeBlock
 from nway_attention.train import train_student_with_teacher
 
 
