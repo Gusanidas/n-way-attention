@@ -31,9 +31,9 @@ class TrittentionCube(nn.Module):
         x = self.norm(x)
         a, b, c, d, e = self.abcde(x).chunk(5, dim=-1)
         a, b, c, d, e = map(lambda t: rearrange(t, 'b n (h d) -> b n h d', h = self.heads), (a, b, c, d, e))
-        step1 = torch.einsum('brnk, nijk -> brij', c, self.W_K)
-        step2 = torch.einsum('brij, bqnj -> briq', step1, b)
-        attn_score = torch.einsum('briq, bpni -> bnpqr', step2, a)
+        step1 = torch.einsum('brnk, nijk -> bnrij', c, self.W_K)
+        step2 = torch.einsum('bnrij, bqnj -> bnriq', step1, b)
+        attn_score = torch.einsum('bnriq, bpni -> bnpqr', step2, a)
         #attn_score = self.apply_causal_mask(attn_score)
         attn_score = rearrange(attn_score, "b n p1 p2 p3 -> b n p3 (p1 p2)")/self.dim_head
         attn_score = attn_score.softmax(dim=-1)

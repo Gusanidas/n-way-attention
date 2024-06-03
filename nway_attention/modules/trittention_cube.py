@@ -56,9 +56,9 @@ class TrittentionCube(nn.Module):
         v = einops.einsum(d,e,self.W_V,"b p1 n h1, b p2 n h2, n h1 h2 h3 -> b p1 p2 n h3")
 
         #attn_score = t.einsum('b p1 n h1, b p2 n h2, b p3 n h3, n h1 h2 h3 -> b n p1 p2 p3', a, b, c, self.W_K)
-        step1 = t.einsum('brnk, nijk -> brij', c, self.W_K)
-        step2 = t.einsum('brij, bqnj -> briq', step1, b)
-        attn_score = t.einsum('briq, bpni -> bnpqr', step2, a)
+        step1 = t.einsum('brnk, nijk -> bnrij', c, self.W_K)
+        step2 = t.einsum('bnrij, bqnj -> bnriq', step1, b)
+        attn_score = t.einsum('bnriq, bpni -> bnpqr', step2, a)
 
         attn_score = self.apply_causal_mask(attn_score)
 
