@@ -30,6 +30,7 @@ pandas = "^2.2.2"
 datasets = "^2.19.1"
 jax = "^0.4.28"
 flax = "^0.8.4"
+transformer-lens = "^2.0.0"
 
 [build-system]
 requires = ["poetry-core"]
