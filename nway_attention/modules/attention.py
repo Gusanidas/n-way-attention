@@ -35,23 +35,8 @@ class Attention(nn.Module):
         k = t.einsum('ndh,bpd->bpnh', self.W_K, normalized_resid_pre) + self.b_K
         v = t.einsum('ndh,bpd->bpnh', self.W_V, normalized_resid_pre) + self.b_V
 
-        attn_score = t.einsum('bpnh,bsnh->bnps', q, k)/np.sqrt(self.W_Q.size(2))
-        attn_score = self.apply_causal_mask(attn_score).softmax(dim=-1)
+        y = nn.functional.scaled_dot_product_attention(q, k, v, is_causal=True)
+        z = t.einsum('bpnh,nhd->bpnd', y, self.W_O) + self.b_O
 
-        z = t.einsum('bnps,bsnh->bpnh', attn_score, v)
-        zint =  t.einsum('bpnh,nhd->bpnd', z, self.W_O)
-        out = einops.reduce(zint,"b p n d -> b p d", reduction='sum') + self.b_O
+        out = einops.reduce(z,"b p n d -> b p d", reduction='sum') + self.b_O
         return out
-
-
-
-    def apply_causal_mask(
-        self, attn_scores: Float[Tensor, "batch n_heads query_pos key_pos"]
-    ) -> Float[Tensor, "batch n_heads query_pos key_pos"]:
-        '''
-        Applies a causal mask to attention scores, and returns masked scores.
-        '''
-        all_ones = t.ones(attn_scores.size(-2), attn_scores.size(-1), device=attn_scores.device)
-        mask = t.triu(all_ones, diagonal=1).bool()
-        attn_scores.masked_fill_(mask, self.IGNORE)
-        return attn_scores
