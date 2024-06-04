@@ -23,6 +23,7 @@ model_cfg = Config(
     order_attn = True,
     attn_eq=True,
     with_ln=True,
+    causal_attn=True,
 )
 
 def compare():

@@ -52,11 +52,11 @@ class Trittention(nn.Module):
         
         attn_score = t.einsum("bsnh, btnh, bqnh -> bnstq", k1,k2,q)
         
-        if self.cfg.causal_atten:
+        if self.cfg.causal_attn:
             attn_score = self.apply_causal_mask(attn_score)
         attn_score = einops.rearrange(attn_score, "b n s t q -> b n q (s t)")/self.cfg.d_head
         
-        if self.cfg.causal_atten:  # Let the first token focus on a dummy value
+        if self.cfg.causal_attn:  # Let the first token focus on a dummy value
             dummy_logit = -1000*t.ones((bs,self.cfg.n_heads,ts, 1), device=attn_score.device)
             attn_score = t.cat((attn_score, dummy_logit), dim=-1)
             
