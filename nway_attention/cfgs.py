@@ -13,6 +13,7 @@ class Config:
     d_head: int = 64
     dt_head: int = 64
     d_mlp: int = 3072
+    causal_attn: bool = True
     n_heads: int = 12
     nt_heads: int = 2
     n_layers: int = 12

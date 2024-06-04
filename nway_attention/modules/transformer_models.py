@@ -7,9 +7,9 @@ import torch.nn as nn
 from jaxtyping import Float, Int
 from huggingface_hub import PyTorchModelHubMixin
 
-from nway_attention.modules.attention import Attention
-from nway_attention.modules.trittention import Trittention
-from nway_attention.modules.trittention_cube import TrittentionCube
+from nway_attention.attention.attention import Attention
+from nway_attention.attention.trittention import Trittention
+from nway_attention.attention.trittention_cube import TrittentionCube
 from nway_attention.cfgs import Config
 from nway_attention.utils_misc import precompute_freqs_cis
 from nway_attention.modules.mixed_attention import MixedAttention

@@ -4,11 +4,10 @@ from torch import Tensor
 import torch.nn as nn
 from jaxtyping import Float
 
-from nway_attention.utils_misc import softmax
-from nway_attention.cfgs import Config
+from nway_attention.utils_misc import Config
 
 
-class Trittention(nn.Module):
+class TrittentionCube(nn.Module):
     IGNORE: Float[Tensor, ""]
 
     def __init__(self, cfg: Config):
@@ -17,20 +16,28 @@ class Trittention(nn.Module):
         self.W_K1 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
         self.W_K2 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
         self.W_Q = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
-        self.W_V12 = nn.Parameter(t.empty((cfg.n_heads, 2*cfg.d_model, cfg.d_head)))
+        self.W_V1 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
+        self.W_V2 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
+
+        self.W_Kq = nn.Parameter(t.empty((cfg.n_heads, cfg.d_head, cfg.d_head, cfg.d_head)))
+        self.W_Vq = nn.Parameter(t.empty((cfg.n_heads, cfg.d_head, cfg.d_head, cfg.d_head)))
 
         self.W_O = nn.Parameter(t.empty((cfg.n_heads, cfg.d_head, cfg.d_model)))
 
         self.b_K1 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
         self.b_K2 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
         self.b_Q = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
-        self.b_V12 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
+        self.b_V1 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
+        self.b_V2 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
         self.b_O = nn.Parameter(t.zeros((cfg.d_model)))
 
         nn.init.normal_(self.W_K1, std=self.cfg.init_range)
         nn.init.normal_(self.W_K2, std=self.cfg.init_range)
         nn.init.normal_(self.W_Q, std=self.cfg.init_range)
-        nn.init.normal_(self.W_V12, std=self.cfg.init_range)
+        nn.init.normal_(self.W_V1, std=self.cfg.init_range)
+        nn.init.normal_(self.W_V2, std=self.cfg.init_range)
+        nn.init.normal_(self.W_Kq, std=self.cfg.init_range)
+        nn.init.normal_(self.W_Vq, std=self.cfg.init_range)
         nn.init.normal_(self.W_O, std=self.cfg.init_range)
         device = t.device('cuda' if t.cuda.is_available() else 'cpu')
         self.register_buffer("IGNORE", t.tensor(-1e6, dtype=t.float32, device=device))
@@ -43,28 +50,31 @@ class Trittention(nn.Module):
         k2 = t.einsum('ndh,bpd->bpnh', self.W_K2, normalized_resid_pre) + self.b_K2
         q = t.einsum('ndh,bpd->bpnh', self.W_Q, normalized_resid_pre) + self.b_Q
 
-        v1 = normalized_resid_pre.unsqueeze(2).expand(-1,-1,ts,-1)
-        v2 = normalized_resid_pre.unsqueeze(1).expand(-1,ts,-1,-1)
-        v12 = t.cat((v1,v2), dim=-1)
+        v1 = t.einsum('ndh,bpd->bpnh', self.W_V1, normalized_resid_pre) + self.b_V1
+        v2 = t.einsum('ndh,bpd->bpnh', self.W_V2, normalized_resid_pre) + self.b_V2
+        v = einops.einsum(v1,v2,self.W_Vq,"b p1 n h1, b p2 n h2, n h1 h2 h3 -> b p1 p2 n h3")
 
-        #print(f"shpae of de {de.shape}, shape of DE {self.W_V12.shape}, bias = {self.b_V12.shape}")
+        #attn_score = t.einsum('b p1 n h1, b p2 n h2, b p3 n h3, n h1 h2 h3 -> b n p1 p2 p3', a, b, c, self.W_K)
+        step1 = t.einsum('brnk, nijk -> bnrij', q, self.W_Kq)
+        step2 = t.einsum('bnrij, bqnj -> bnriq', step1, k2)
+        attn_score = t.einsum('bnriq, bpni -> bnpqr', step2, k1)
 
-        v = t.einsum('ndh,bpsd->bpsnh', self.W_V12, v12)
-        v += self.b_V12
-
-        attn_score = t.einsum("bsnh, btnh, bqnh -> bnstq", k1,k2,q)
         attn_score = self.apply_causal_mask(attn_score)
 
-
+        if self.cfg.causal_attn:
+            attn_score = self.apply_causal_mask(attn_score)
         attn_score = einops.rearrange(attn_score, "b n s t q -> b n q (s t)")/self.cfg.d_head
-        extra = -1000*t.ones((bs,self.cfg.n_heads,ts, 1), device=attn_score.device)
-        attn_score = t.cat((attn_score, extra), dim=-1)
-        attn_score = attn_score.softmax(dim=-1)
-        v = einops.rearrange(v, "b p s n h -> b n h (p s)")
-        extra = t.zeros((bs, self.cfg.n_heads, self.cfg.d_head, 1), device=v.device)
-        v = t.cat((v,extra), dim=-1)
+        
+        if self.cfg.causal_attn:  # Let the first token focus on a dummy value
+            dummy_logit = -1000*t.ones((bs,self.cfg.n_heads,ts, 1), device=attn_score.device)
+            attn_score = t.cat((attn_score, dummy_logit), dim=-1)
+            
+            dummy_value = t.zeros((bs, self.cfg.n_heads, self.cfg.d_head, 1), device=v.device)
+            v = t.cat((v, dummy_value), dim=-1)
+    
+        attn_score = attn_score.softmax(dim=-1) 
         z = t.einsum('bnql, bnhl -> bqnh', attn_score, v)
-        zint =  t.einsum('bpnh,nhd->bpnd', z, self.W_O)
+        zint =  t.einsum('bpnh, nhd->bpnd', z, self.W_O)
         out = einops.reduce(zint,"b p n d -> b p d", reduction='sum') + self.b_O
         return out#, z
 
@@ -96,44 +106,3 @@ class Trittention(nn.Module):
 
         attn_scores.masked_fill_(mask, self.IGNORE)
         return attn_scores
-
-    def slow_tri(self, normalized_resid_pre):
-        '''
-        Slower implementation to sanity check.
-        '''
-        bs, ts, ds = normalized_resid_pre.shape
-        out = t.zeros((bs, ts, self.cfg.n_heads, self.cfg.d_head))
-
-        for bi in range(bs):
-            for i in range(self.cfg.n_heads):
-                for t1 in range(ts):
-                    c = normalized_resid_pre[bi,t1,:] @ self.W_Q[i,:,:] + self.b_Q[i,:]
-                    scores, vectors = [], []
-                    for t2 in range(ts):
-                        for t3 in range(ts):
-                            b = normalized_resid_pre[bi,t2,:] @ self.W_K2[i,:,:] + self.b_K2[i,:]
-                            a = normalized_resid_pre[bi,t3,:] @ self.W_K1[i,:,:] + self.b_K1[i,:]
-                            score = self.slow_tri_dot(a,b,c)
-                            cv = t.cat((normalized_resid_pre[bi, t3,:], normalized_resid_pre[bi, t2,:]), dim=-1)
-                            v = cv @ self.W_V12[i,:,:] + self.b_V12[i,:]
-                            if t2 == t3 or t2>=t1 or t3>=t1:
-                                pass
-                            else:
-                                scores.append(score)
-                                vectors.append(v)
-
-                    scores = [s.cpu()/self.cfg.d_head for s in scores]
-                    scores = softmax(scores)
-                    for j in range(len(scores)):
-                        out[bi, t1, i, :] += scores[j]*vectors[j]
-        return out
-
-
-    def slow_tri_dot(self, a, b, c):
-        assert a.shape == b.shape == c.shape
-
-        h = a.shape[0]
-        sum = 0
-        for hi in range(h):
-            sum += a[hi]*b[hi]*c[hi]
-        return sum.detach()
