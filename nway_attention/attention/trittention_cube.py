@@ -4,11 +4,10 @@ from torch import Tensor
 import torch.nn as nn
 from jaxtyping import Float
 
-from nway_attention.utils_misc import softmax
-from nway_attention.cfgs import Config
+from nway_attention.utils_misc import Config
 
 
-class Trittention(nn.Module):
+class TrittentionCube(nn.Module):
     IGNORE: Float[Tensor, ""]
 
     def __init__(self, cfg: Config):
@@ -17,20 +16,28 @@ class Trittention(nn.Module):
         self.W_K1 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
         self.W_K2 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
         self.W_Q = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
-        self.W_V12 = nn.Parameter(t.empty((cfg.n_heads, 2*cfg.d_model, cfg.d_head)))
+        self.W_V1 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
+        self.W_V2 = nn.Parameter(t.empty((cfg.n_heads, cfg.d_model, cfg.d_head)))
+
+        self.W_Kq = nn.Parameter(t.empty((cfg.n_heads, cfg.d_head, cfg.d_head, cfg.d_head)))
+        self.W_Vq = nn.Parameter(t.empty((cfg.n_heads, cfg.d_head, cfg.d_head, cfg.d_head)))
 
         self.W_O = nn.Parameter(t.empty((cfg.n_heads, cfg.d_head, cfg.d_model)))
 
         self.b_K1 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
         self.b_K2 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
         self.b_Q = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
-        self.b_V12 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
+        self.b_V1 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
+        self.b_V2 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
         self.b_O = nn.Parameter(t.zeros((cfg.d_model)))
 
         nn.init.normal_(self.W_K1, std=self.cfg.init_range)
         nn.init.normal_(self.W_K2, std=self.cfg.init_range)
         nn.init.normal_(self.W_Q, std=self.cfg.init_range)
-        nn.init.normal_(self.W_V12, std=self.cfg.init_range)
+        nn.init.normal_(self.W_V1, std=self.cfg.init_range)
+        nn.init.normal_(self.W_V2, std=self.cfg.init_range)
+        nn.init.normal_(self.W_Kq, std=self.cfg.init_range)
+        nn.init.normal_(self.W_Vq, std=self.cfg.init_range)
         nn.init.normal_(self.W_O, std=self.cfg.init_range)
         device = t.device('cuda' if t.cuda.is_available() else 'cpu')
         self.register_buffer("IGNORE", t.tensor(-1e6, dtype=t.float32, device=device))
@@ -43,15 +50,17 @@ class Trittention(nn.Module):
         k2 = t.einsum('ndh,bpd->bpnh', self.W_K2, normalized_resid_pre) + self.b_K2
         q = t.einsum('ndh,bpd->bpnh', self.W_Q, normalized_resid_pre) + self.b_Q
 
-        v1 = normalized_resid_pre.unsqueeze(2).expand(-1,-1,ts,-1)
-        v2 = normalized_resid_pre.unsqueeze(1).expand(-1,ts,-1,-1)
-        v12 = t.cat((v1,v2), dim=-1)
-        v = t.einsum('ndh,bpsd->bpsnh', self.W_V12, v12)
-        v += self.b_V12
-        v = einops.rearrange(v, "b p s n h -> b n h (p s)")
-        
-        attn_score = t.einsum("bsnh, btnh, bqnh -> bnstq", k1,k2,q)
-        
+        v1 = t.einsum('ndh,bpd->bpnh', self.W_V1, normalized_resid_pre) + self.b_V1
+        v2 = t.einsum('ndh,bpd->bpnh', self.W_V2, normalized_resid_pre) + self.b_V2
+        v = einops.einsum(v1,v2,self.W_Vq,"b p1 n h1, b p2 n h2, n h1 h2 h3 -> b p1 p2 n h3")
+
+        #attn_score = t.einsum('b p1 n h1, b p2 n h2, b p3 n h3, n h1 h2 h3 -> b n p1 p2 p3', a, b, c, self.W_K)
+        step1 = t.einsum('brnk, nijk -> bnrij', q, self.W_Kq)
+        step2 = t.einsum('bnrij, bqnj -> bnriq', step1, k2)
+        attn_score = t.einsum('bnriq, bpni -> bnpqr', step2, k1)
+
+        attn_score = self.apply_causal_mask(attn_score)
+
         if self.cfg.causal_atten:
             attn_score = self.apply_causal_mask(attn_score)
         attn_score = einops.rearrange(attn_score, "b n s t q -> b n q (s t)")/self.cfg.d_head
