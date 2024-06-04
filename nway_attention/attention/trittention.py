@@ -46,25 +46,26 @@ class Trittention(nn.Module):
         v1 = normalized_resid_pre.unsqueeze(2).expand(-1,-1,ts,-1)
         v2 = normalized_resid_pre.unsqueeze(1).expand(-1,ts,-1,-1)
         v12 = t.cat((v1,v2), dim=-1)
-
-        #print(f"shpae of de {de.shape}, shape of DE {self.W_V12.shape}, bias = {self.b_V12.shape}")
-
         v = t.einsum('ndh,bpsd->bpsnh', self.W_V12, v12)
         v += self.b_V12
+        v = einops.rearrange(v, "b p s n h -> b n h (p s)")
+        
 
         attn_score = t.einsum("bsnh, btnh, bqnh -> bnstq", k1,k2,q)
-        attn_score = self.apply_causal_mask(attn_score)
-
-
+        if self.cfg.causal_atten:
+            attn_score = self.apply_causal_mask(attn_score)
         attn_score = einops.rearrange(attn_score, "b n s t q -> b n q (s t)")/self.cfg.d_head
-        extra = -1000*t.ones((bs,self.cfg.n_heads,ts, 1), device=attn_score.device)
-        attn_score = t.cat((attn_score, extra), dim=-1)
-        attn_score = attn_score.softmax(dim=-1)
-        v = einops.rearrange(v, "b p s n h -> b n h (p s)")
-        extra = t.zeros((bs, self.cfg.n_heads, self.cfg.d_head, 1), device=v.device)
-        v = t.cat((v,extra), dim=-1)
+        
+        if self.cfg.causal_atten:  # Let the first token focus on a dummy value
+            dummy_logit = -1000*t.ones((bs,self.cfg.n_heads,ts, 1), device=attn_score.device)
+            attn_score = t.cat((attn_score, dummy_logit), dim=-1)
+            
+            dummy_value = t.zeros((bs, self.cfg.n_heads, self.cfg.d_head, 1), device=v.device)
+            v = t.cat((v, dummy_value), dim=-1)
+    
+        attn_score = attn_score.softmax(dim=-1) 
         z = t.einsum('bnql, bnhl -> bqnh', attn_score, v)
-        zint =  t.einsum('bpnh,nhd->bpnd', z, self.W_O)
+        zint =  t.einsum('bpnh, nhd->bpnd', z, self.W_O)
         out = einops.reduce(zint,"b p n d -> b p d", reduction='sum') + self.b_O
         return out#, z
 
@@ -96,44 +97,3 @@ class Trittention(nn.Module):
 
         attn_scores.masked_fill_(mask, self.IGNORE)
         return attn_scores
-
-    def slow_tri(self, normalized_resid_pre):
-        '''
-        Slower implementation to sanity check.
-        '''
-        bs, ts, ds = normalized_resid_pre.shape
-        out = t.zeros((bs, ts, self.cfg.n_heads, self.cfg.d_head))
-
-        for bi in range(bs):
-            for i in range(self.cfg.n_heads):
-                for t1 in range(ts):
-                    c = normalized_resid_pre[bi,t1,:] @ self.W_Q[i,:,:] + self.b_Q[i,:]
-                    scores, vectors = [], []
-                    for t2 in range(ts):
-                        for t3 in range(ts):
-                            b = normalized_resid_pre[bi,t2,:] @ self.W_K2[i,:,:] + self.b_K2[i,:]
-                            a = normalized_resid_pre[bi,t3,:] @ self.W_K1[i,:,:] + self.b_K1[i,:]
-                            score = self.slow_tri_dot(a,b,c)
-                            cv = t.cat((normalized_resid_pre[bi, t3,:], normalized_resid_pre[bi, t2,:]), dim=-1)
-                            v = cv @ self.W_V12[i,:,:] + self.b_V12[i,:]
-                            if t2 == t3 or t2>=t1 or t3>=t1:
-                                pass
-                            else:
-                                scores.append(score)
-                                vectors.append(v)
-
-                    scores = [s.cpu()/self.cfg.d_head for s in scores]
-                    scores = softmax(scores)
-                    for j in range(len(scores)):
-                        out[bi, t1, i, :] += scores[j]*vectors[j]
-        return out
-
-
-    def slow_tri_dot(self, a, b, c):
-        assert a.shape == b.shape == c.shape
-
-        h = a.shape[0]
-        sum = 0
-        for hi in range(h):
-            sum += a[hi]*b[hi]*c[hi]
-        return sum.detach()

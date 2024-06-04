@@ -35,7 +35,7 @@ class Attention(nn.Module):
         k = t.einsum('ndh,bpd->bpnh', self.W_K, normalized_resid_pre) + self.b_K
         v = t.einsum('ndh,bpd->bpnh', self.W_V, normalized_resid_pre) + self.b_V
 
-        y = nn.functional.scaled_dot_product_attention(q, k, v, is_causal=True)
+        y = nn.functional.scaled_dot_product_attention(q, k, v, is_causal=self.cfg.causal_attn)
         z = t.einsum('bpnh,nhd->bpnd', y, self.W_O) + self.b_O
 
         out = einops.reduce(z,"b p n d -> b p d", reduction='sum') + self.b_O
