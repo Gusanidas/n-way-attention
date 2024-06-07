@@ -12,10 +12,10 @@ from nway_attention.cfgs import Config
 class MixedAttention(nn.Module):
     IGNORE: Float[Tensor, ""]
 
-    def __init__(self, cfg: Config, freqs_cis: t.Tensor = None):
+    def __init__(self, cfg: Config):
         super().__init__()
         self.cfg = cfg
-        self.freqs_cis = freqs_cis
+        self.freqs_cis = t.as_tensor(getattr(cfg, 'freqs_cis', None))
         self.device = t.device('cuda' if t.cuda.is_available() else 'cpu')
         self.pad_value = getattr(cfg, 'pad_value', 0)
         self.autopad = getattr(cfg, 'autopad', True)
@@ -93,14 +93,14 @@ class MixedAttention(nn.Module):
     
 if __name__ == '__main__':
     from nway_attention.cfgs import Config
-    from utils_misc import precompute_freqs_cis
-    cfg = Config()
-    model = MixedAttention(cfg, freqs_cis=precompute_freqs_cis(cfg.d_head, cfg.n_ctx))
+    from nway_attention.utils_misc import precompute_freqs_cis
+    cfg = Config(freqs_cis=precompute_freqs_cis(Config.d_head, Config.n_ctx))
+    model = MixedAttention(cfg)
     x = t.randn(12, cfg.n_ctx, cfg.d_model)
     y = model(x)
     print(y.shape)
-    cfg = Config(dt_head=64, nt_heads=0)
-    model = MixedAttention(cfg, freqs_cis=precompute_freqs_cis(cfg.d_head, cfg.n_ctx))
+    cfg = Config(dt_head=64, nt_heads=0, freqs_cis=precompute_freqs_cis(Config.d_head, Config.n_ctx))
+    model = MixedAttention(cfg)
     x = t.randn(12, cfg.n_ctx, cfg.d_model)
     y = model(x)
     print(y.shape)

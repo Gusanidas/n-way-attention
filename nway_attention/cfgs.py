@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass, asdict, fields
 
 
@@ -14,18 +13,22 @@ class Config:
     dt_head: int = 64
     d_mlp: int = 3072
     causal_attn: bool = True
+    attn_type: str = 'Attention'
     n_heads: int = 12
     nt_heads: int = 2
     n_layers: int = 12
     dropout: float = 0.1
     mlp_type: str = "all"
     with_ln: bool = True
+    is_gated: bool = False
+    has_mlp: bool = True
     order_attn: bool = True
     attn_eq: bool = False
     window_size: int = 16
     look_backward: int = 1
     pad_value: int = 0
     autopad: bool = True
+    freqs_cis: list = None
 
     def to_dict(self) -> dict:
         """Converts the dataclass instance to a dictionary."""

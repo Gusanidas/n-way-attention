@@ -4,7 +4,7 @@ from nway_attention.cfgs import Config
 from nway_attention.attention.trittention_cube import TrittentionCube
 from nway_attention.attention.trittention import Trittention
 from nway_attention.attention.attention import Attention
-from nway_attention.modules.transformer_models import TransformerBlock, Transformer, TriformerCube, Triformer, TriformerBlock, TriformerCubeBlock
+from nway_attention.modules.transformer_models import TransformerBlock, Transformer
 from nway_attention.train import train_student_with_teacher
 
 
@@ -28,10 +28,10 @@ model_cfg = Config(
 
 def compare():
     stb1 = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(4)])
-    stri = nn.Sequential(*[TriformerBlock(model_cfg, has_mlp=False) for _ in range(2)])
+    stri = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(2)])
     train_student_with_teacher(stri, stb1, 256, num_epochs=702)
     stb1 = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(4)])
-    stri = nn.Sequential(*[TriformerBlock(model_cfg, has_mlp=False) for _ in range(2)])
+    stri = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(2)])
     train_student_with_teacher(stb1, stri, 256)
 
 if __name__ == '__main__':

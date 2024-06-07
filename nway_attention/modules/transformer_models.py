@@ -12,7 +12,7 @@ from nway_attention.attention.trittention import Trittention
 from nway_attention.attention.trittention_cube import TrittentionCube
 from nway_attention.cfgs import Config
 from nway_attention.utils_misc import precompute_freqs_cis
-from nway_attention.modules.mixed_attention import MixedAttention
+from nway_attention.attention.mixed_attention import MixedAttention
 
 class Embed(nn.Module):
     def __init__(self, cfg: Config):
@@ -56,7 +56,7 @@ class TransformerBlock(nn.Module):
     def __init__(self, cfg: Config, has_mlp: bool = True):
         super().__init__()
         self.cfg = cfg
-        self.attn = Attention(cfg)
+        self.attn = self._get_attention(cfg)
         self.dropout1 = nn.Dropout(cfg.dropout)
         self.ln1 = nn.LayerNorm(cfg.d_model) if cfg.with_ln else nn.Identity()
         self.has_mlp = has_mlp
@@ -65,6 +65,9 @@ class TransformerBlock(nn.Module):
             self.dropout = nn.Dropout(cfg.dropout)
             self.linear2 = nn.Linear(cfg.d_mlp, cfg.d_model)
             self.gelu = nn.GELU()
+            if cfg.is_gated:
+                self.linearg = nn.Linear(cfg.d_model, cfg.d_mlp)
+                self.linear2 = nn.Linear(cfg.d_mlp, cfg.d_model)
 
             self.ln2 = nn.LayerNorm(cfg.d_model) if cfg.with_ln else nn.Identity()
             self.dropout2 = nn.Dropout(cfg.dropout)
@@ -74,20 +77,26 @@ class TransformerBlock(nn.Module):
     ) -> Float[Tensor, "batch position d_model"]:
         resid = self.dropout1(self.attn(self.ln1(resid))) + resid
         if self.has_mlp:
-            resid = self.dropout2(self.linear2(self.gelu(self.linear1(resid)))) + resid
+            if self.cfg.is_gated:
+                mid_mlp = self.gelu(self.linearg(resid), approximate="tanh")*self.linear1(resid)
+            else:
+                mid_mlp = self.gelu(self.linear1(resid))
+                
+            resid = self.dropout2(self.linear2(mid_mlp)) + resid
         
         return resid
-
-class TriformerBlock(TransformerBlock):
-    def __init__(self, cfg: Config, has_mlp: bool = True):
-        super().__init__(cfg, has_mlp=has_mlp)
-        self.attn = Trittention(cfg)
-
-class TriformerCubeBlock(TransformerBlock):
-    def __init__(self, cfg: Config, has_mlp: bool = True):
-        super().__init__(cfg, has_mlp=has_mlp)
-        self.attn = TrittentionCube(cfg)
-
+    
+    def _get_attention(self, cfg, freqs_cis=None):
+        if cfg.attn_type.lower() == 'attention':
+            return Attention(cfg)
+        elif cfg.attn_type.lower() == 'trittention':
+            return Trittention(cfg)
+        elif cfg.attn_type.lower() == 'trittentioncube':
+            return TrittentionCube(cfg)
+        elif cfg.attn_type.lower() == 'mixedattention':
+            return MixedAttention(cfg)
+        else:
+            raise ValueError(f"Attention type {cfg.attn_type} not recognized.")
 
 class Transformer(nn.Module, PyTorchModelHubMixin):
     def __init__(self, config: dict):
@@ -116,51 +125,7 @@ class Transformer(nn.Module, PyTorchModelHubMixin):
         logits = self.unembed(self.ln_final(residual))
         return logits
 
-class Triformer(Transformer):
-    def __init__(self, config: dict):
-        super().__init__(config)
-        self.blocks = self._get_blocks(TriformerBlock)
-
-class TriformerCube(Transformer):
-    def __init__(self, config: dict):
-        super().__init__(config)
-        self.blocks = self._get_blocks(TriformerCubeBlock)
-
-class TransformerGatedBlock(nn.Module):
-    def __init__(self, cfg: Config, has_mlp: bool = True):
-        super().__init__()
-        self.cfg = cfg
-        self.attn = Attention(cfg)
-        self.dropout1 = nn.Dropout(cfg.dropout)
-        self.ln1 = nn.LayerNorm(cfg.d_model) if cfg.with_ln else nn.Identity()
-        self.has_mlp = has_mlp
-        if self.has_mlp:
-            self.linear1 = nn.Linear(cfg.d_model, cfg.d_mlp)
-            self.linearg = nn.Linear(cfg.d_model, cfg.d_mlp)
-            self.dropout = nn.Dropout(cfg.dropout)
-            self.linear2 = nn.Linear(cfg.d_mlp, cfg.d_model)
-            self.gelu = nn.GELU()
-
-            self.ln2 = nn.LayerNorm(cfg.d_model) if cfg.with_ln else nn.Identity()
-            self.dropout2 = nn.Dropout(cfg.dropout)
-
-    def forward(
-        self, resid: Float[Tensor, "batch position d_model"]
-    ) -> Float[Tensor, "batch position d_model"]:
-        resid = self.dropout1(self.attn(self.ln1(resid))) + resid
-        if self.has_mlp:
-            mid_mlp = F.gelu(self.linearg(resid), approximate="tanh")*self.linear1(resid)
-            resid = self.dropout2(self.linear2(mid_mlp)) + resid
-        
-        return resid
-
-
-class TransformerGated(Transformer):
-    def __init__(self, config: dict):
-        super().__init__(config)
-        self.blocks = self._get_blocks(TransformerGatedBlock)
-
-class TriformerMixedBlock(TransformerGatedBlock):
+class TriformerMixedBlock(TransformerBlock):
     def __init__(self, cfg: Config, has_mlp: bool = True, freqs_cis: t.Tensor = None):
         super().__init__(cfg, has_mlp=has_mlp)
         self.attn = MixedAttention(cfg, freqs_cis=freqs_cis)
