@@ -1,13 +1,15 @@
-from nway_attention.modules.transformer_models import Transformer, Triformer, TriformerCube
+from nway_attention.modules.transformer_models import Transformer
 from transformer_lens import HookedTransformer
 import torch as t
 import wandb
 from time import time
 from nway_attention.train.trainer import Trainer, TransformerTrainingArgs
 from nway_attention.cfgs import Config
-from nway_attention.train.task_generators import generate_bool_expr, generate_arithmetic_expr, generate_lis, generate_subpal, generate_knapsack, generate_rep
+from nway_attention.train.task_generators import generate_lis, generate_subpal, generate_knapsack, generate_rep
 from dotenv import load_dotenv
 import os
+
+from nway_attention.utils_misc import get_device
 
 load_dotenv()
 
@@ -21,19 +23,19 @@ else:
 
 
 
-device = t.device('cuda' if t.cuda.is_available() else 'cpu')
+device = get_device()
 print(f"Using device: {device}")
 t0 = time()
 reference_gpt2 = HookedTransformer.from_pretrained("gpt2-small", fold_ln=False, center_unembed=False, center_writing_weights=False)
 filename = "may6lisb.txt"
 
-def train_run(model = "transformer",
- generator = "arithmetic",
+def train_run(generator = "arithmetic",
   depth=2,
   train_size = 180000,
   test_size = 2000,
    **kwargs):
     model_cfg = Config(
+        attn_type=kwargs.get("attn_type", 'attention'),
         d_model = kwargs.get("d_model", 128),
         debug = kwargs.get("debug", True),
         layer_norm_eps = kwargs.get("layer_norm_eps", 1e-5),
@@ -75,14 +77,8 @@ def train_run(model = "transformer",
     test_list = [generate_expr(device, n=depth) for i in range(test_size)]
 
 
-    if model == "transformer":
-        model = Transformer(model_cfg.to_dict()).to(device)
-    elif model == "triformer":
-        model = Triformer(model_cfg.to_dict()).to(device)
-    elif model == "triformerCube":
-        model = TriformerCube(model_cfg.to_dict()).to(device)
-    else:
-        raise ValueError("model must be 'transformer', 'triformerCube' or 'triformer'")
+    model = Transformer(model_cfg.to_dict()).to(device)
+
     print("The model is")
     print(model)
     trainer = Trainer(trainer_args, model, train_list, test_list)
@@ -103,21 +99,6 @@ with open(filename, "a") as file:
     file.write(", ".join(f"{key}: {value}" for key, value in size2.items()) +"\n" + "\n")
 
 generator = "lis"
-#n_layers = 10
-#
-#depth = 14
-#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
-#
-#depth = 21
-#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
-#
-#depth = 27
-#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
-#
-#depth = 37
-#train_run(epochs=epochs, model="transformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"trans-{generator}-depth{depth}-layers{n_layers}-size2", **size2)
-#
-####
 size3 = {"d_model": 128, "d_head": 32, "d_mlp": 512, "n_heads": 4, "batch_size":200, "lr": 3e-4, "mlp_type": "all", "decay_scheduler": "exponential"}
 
 with open(filename, "a") as file:
@@ -125,37 +106,14 @@ with open(filename, "a") as file:
 
 generator = "lis"
 n_layers = 4
-#
-#depth = 14
-#train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size3", **size3)
-#
-#depth = 21
-#train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size3", **size3)
-#
-#depth = 27
-#train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size3", **size3)
-#
-#depth = 37
-#train_run(epochs=epochs, model="triformer", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"tri-{generator}-depth{depth}-layers{n_layers}-size3", **size3)
-#
-#
-##########
-#
-#
-#with open(filename, "a") as file:
-#    file.write(", ".join(f"{key}: {value}" for key, value in size2.items()) +"\n" + "\n")
-#
-#generator = "lis"
-#n_layers = 4
-#
 depth = 14
-train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size3)
+train_run(epochs=epochs, attn_type="attentioncube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size3)
 
 depth = 21
-train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size3)
+train_run(epochs=epochs, attn_type="attentioncube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size3)
 
 depth = 27
-train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size3)
+train_run(epochs=epochs, attn_type="attentioncube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size3)
 
 depth = 37
-train_run(epochs=epochs, model="triformerCube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size3)
+train_run(epochs=epochs, attn_type="attentioncube", generator=generator, n_layers=n_layers, depth=depth, wandb_name=f"triCube-{generator}-depth{depth}-layers{n_layers}-size2", **size3)

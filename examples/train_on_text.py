@@ -1,6 +1,7 @@
 from nway_attention.cfgs import Config
-from transformer_models import TriformerMixed
-from utils_misc import get_log_probs
+from nway_attention.utils_misc import get_device
+from nway_attention.modules.transformer_models import TriformerMixed
+from nway_attention.utils_misc import get_log_probs
 from datasets import load_dataset
 from transformers import AutoTokenizer
 import time
@@ -75,7 +76,7 @@ model = TriformerMixed.from_pretrained('Gusanidas/mixnet_12b')
 print(model)
 print(model.cfg)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_device()
 model.to(device)
 model.cfg.window_size = 32
 num_epochs = 4

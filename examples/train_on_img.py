@@ -8,6 +8,7 @@ import torch
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
 from datasets import load_dataset
+from nway_attention.utils_misc import get_device
 from vit import ViTMixed, ViTtri
 import random
 
@@ -118,7 +119,7 @@ def evaluate(model, dataloader, criterion, device, max_steps = 200000):
     return epoch_loss, epoch_acc
 
 wandb.init(project="vit-tri")
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_device()
 vit_modelc = vit_modelc.to(device)
 print_num_parameters(vit_modelc)
 

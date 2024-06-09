@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 from nway_attention.cfgs import Config
@@ -6,6 +7,7 @@ from nway_attention.attention.trittention import Trittention
 from nway_attention.attention.attention import Attention
 from nway_attention.modules.transformer_models import TransformerBlock, Transformer
 from nway_attention.train import train_student_with_teacher
+from nway_attention.utils_misc import get_device
 
 
 model_cfg = Config(
@@ -27,12 +29,13 @@ model_cfg = Config(
 )
 
 def compare():
+    device = get_device()
     stb1 = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(4)])
     stri = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(2)])
-    train_student_with_teacher(stri, stb1, 256, num_epochs=702)
+    train_student_with_teacher(stri, stb1, 256, num_epochs=702, device=device)
     stb1 = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(4)])
     stri = nn.Sequential(*[TransformerBlock(model_cfg, has_mlp=False) for _ in range(2)])
-    train_student_with_teacher(stb1, stri, 256)
+    train_student_with_teacher(stb1, stri, 256, device=device)
 
 if __name__ == '__main__':
     compare()

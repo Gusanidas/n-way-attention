@@ -2,11 +2,19 @@ import time
 import torch
 from torch import nn, optim
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters())
 
-def train_student_with_teacher(student_model, teacher_model, hidden_size, num_epochs=2500, batch_size=256, seq_len=42, learning_rate=0.002):
+def train_student_with_teacher(
+        student_model,
+        teacher_model,
+        hidden_size,
+        num_epochs=2500,
+        batch_size=256,
+        seq_len=42,
+        learning_rate=0.002,
+        device='cpu'):
     t0 = time.time()
     criterion = nn.MSELoss()
     optimizer = optim.Adam(student_model.parameters(), lr=learning_rate)
