@@ -10,7 +10,7 @@ license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.11"
 torch = "^2.2"
 einops = "^0.8.0"
 jaxtyping = "^0.2.29"
@@ -27,10 +27,13 @@ wandb = "^0.17.0"
 nnsight = "^0.2.19"
 plotly = "^5.22.0"
 pandas = "^2.2.2"
-datasets = "^2.19.1"
 jax = "^0.4.28"
 flax = "^0.8.4"
 transformer-lens = "^2.0.0"
+pyarrow = "^16.1.0"
+huggingface-hub = "^0.23.3"
+datasets = "^2.19.2"
+python-dotenv = "^1.0.1"
 
 [build-system]
 requires = ["poetry-core"]
