@@ -82,3 +82,14 @@ def look_around(x, backward = 1, forward = 0, pad_value = -1, dim = 2):
     padded_x = F.pad(x, (*dims, backward, forward), value = pad_value)
     tensors = [padded_x[:, ind:(ind + ts), ...] for ind in range(forward + backward + 1)]
     return torch.cat(tensors, dim = dim)
+
+
+class IdentityModule(nn.Module):
+    # Used for NNsight compatibility
+    IGNORE: Float[Tensor, ""]
+    def __init__(self):
+        super().__init__()
+        
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x
+    

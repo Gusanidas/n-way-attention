@@ -4,7 +4,7 @@ from torch import Tensor
 import torch.nn as nn
 from jaxtyping import Float
 
-from nway_attention.utils_misc import softmax
+from nway_attention.utils_misc import IdentityModule
 from nway_attention.cfgs import Config
 
 
@@ -26,6 +26,10 @@ class Trittention(nn.Module):
         self.b_Q = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
         self.b_V12 = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
         self.b_O = nn.Parameter(t.zeros((cfg.d_model)))
+        
+        self.Mask = IdentityModule()
+        self.AttentionScore = IdentityModule()
+        self.HeadOutputs = IdentityModule()
 
         nn.init.normal_(self.W_K1, std=self.cfg.init_range)
         nn.init.normal_(self.W_K2, std=self.cfg.init_range)
@@ -56,16 +60,17 @@ class Trittention(nn.Module):
             attn_score = self.apply_causal_mask(attn_score)
         attn_score = einops.rearrange(attn_score, "b n s t q -> b n q (s t)")/self.cfg.d_head
         
-        if self.cfg.causal_attn:  # Let the first token focus on a dummy value
-            dummy_logit = -1000*t.ones((bs,self.cfg.n_heads,ts, 1), device=attn_score.device)
-            attn_score = t.cat((attn_score, dummy_logit), dim=-1)
+        # if self.cfg.causal_attn:  # Let the first token focus on a dummy value
+        #     dummy_logit = -1000*t.ones((bs,self.cfg.n_heads,ts, 1), device=attn_score.device)
+        #     attn_score = t.cat((attn_score, dummy_logit), dim=-1)
             
-            dummy_value = t.zeros((bs, self.cfg.n_heads, self.cfg.d_head, 1), device=v.device)
-            v = t.cat((v, dummy_value), dim=-1)
+        #     dummy_value = t.zeros((bs, self.cfg.n_heads, self.cfg.d_head, 1), device=v.device)
+        #     v = t.cat((v, dummy_value), dim=-1)
     
-        attn_score = attn_score.softmax(dim=-1) 
+        attn_score = attn_score.softmax(dim=-1)
+        attn_score = self.AttentionScore(attn_score)
         z = t.einsum('bnql, bnhl -> bqnh', attn_score, v)
-        zint =  t.einsum('bpnh, nhd->bpnd', z, self.W_O)
+        zint =  self.HeadOutputs(t.einsum('bpnh, nhd->bpnd', z, self.W_O))
         out = einops.reduce(zint,"b p n d -> b p d", reduction='sum') + self.b_O
         return out#, z
 
@@ -94,6 +99,7 @@ class Trittention(nn.Module):
             else:
                 mask = (t_indices >= q_indices) | (s_indices >= q_indices) | (t_indices == s_indices)
         mask = mask.to(attn_scores.device)
+        mask = self.Mask(mask)
 
         attn_scores.masked_fill_(mask, self.IGNORE)
         return attn_scores

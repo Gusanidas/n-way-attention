@@ -9,7 +9,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
 from datasets import load_dataset
 from nway_attention.utils_misc import get_device
-from vit import ViTMixed, ViTtri
+from nway_attention.modules.vit import ViTMixed, ViTtri
 import random
 
 # Load a subset of ImageNet
