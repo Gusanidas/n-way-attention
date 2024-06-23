@@ -13,12 +13,12 @@ class Config:
     dt_head: int = 64
     d_mlp: int = 3072
     causal_attn: bool = True
-    attn_type: str = 'Attention'
+    attn_type: str = 'Attention' # Attention, Trittention, TrittentionCube, MixedAttention
     n_heads: int = 12
     nt_heads: int = 2
     n_layers: int = 12
     dropout: float = 0.1
-    mlp_type: str = "all"
+    mlp_type: str = "all" # all, last, none
     with_ln: bool = True
     is_gated: bool = False
     has_mlp: bool = True

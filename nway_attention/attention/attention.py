@@ -31,12 +31,12 @@ class Attention(nn.Module):
 
     def forward(self, normalized_resid_pre: t.Tensor) -> t.Tensor:
         # Assuming self.W_Q, self.W_K, self.W_V, and self.W_O are parameter matrices of the model
-        q = t.einsum('ndh,bpd->bpnh', self.W_Q, normalized_resid_pre) + self.b_Q
-        k = t.einsum('ndh,bpd->bpnh', self.W_K, normalized_resid_pre) + self.b_K
-        v = t.einsum('ndh,bpd->bpnh', self.W_V, normalized_resid_pre) + self.b_V
+        q = t.einsum('ndh,bpd->bnph', self.W_Q, normalized_resid_pre) + self.b_Q
+        k = t.einsum('ndh,bpd->bnph', self.W_K, normalized_resid_pre) + self.b_K
+        v = t.einsum('ndh,bpd->bnph', self.W_V, normalized_resid_pre) + self.b_V
 
         y = nn.functional.scaled_dot_product_attention(q, k, v, is_causal=self.cfg.causal_attn)
-        z = t.einsum('bpnh,nhd->bpnd', y, self.W_O) + self.b_O
+        z = t.einsum('bnph,nhd->bpnd', y, self.W_O)
 
         out = einops.reduce(z,"b p n d -> b p d", reduction='sum') + self.b_O
         return out
