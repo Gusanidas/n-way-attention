@@ -21,7 +21,7 @@ class Attention(nn.Module):
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
         qkv = self.c_attn(x)
-        q, k, v = qkv.split(self.n_embd, dim=2)
+        q, k, v = qkv.split(self.cfg.d_model, dim=2)
         k = k.view(B, T, self.cfg.n_heads, C // self.cfg.n_heads).transpose(1, 2) # (B, nh, T, hs)
         q = q.view(B, T, self.cfg.n_heads, C // self.cfg.n_heads).transpose(1, 2) # (B, nh, T, hs)
         v = v.view(B, T, self.cfg.n_heads, C // self.cfg.n_heads).transpose(1, 2) # (B, nh, T, hs)
