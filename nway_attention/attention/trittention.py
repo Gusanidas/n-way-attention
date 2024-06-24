@@ -24,9 +24,10 @@ class Trittention(nn.Module):
         self.register_buffer('precomputed_mask', self.create_causal_mask(cfg.n_ctx))
 
     def create_causal_mask(self, max_seq_len):
-        t_indices = t.arange(max_seq_len).unsqueeze(0).unsqueeze(1).unsqueeze(-1)
-        s_indices = t.arange(max_seq_len).unsqueeze(0).unsqueeze(0).unsqueeze(1)
-        q_indices = t.arange(max_seq_len).unsqueeze(0).unsqueeze(0).unsqueeze(0)
+        
+        t_indices = t.arange(max_seq_len).unsqueeze(0).unsqueeze(1).unsqueeze(-1).unsqueeze(-1)  # Shape: (1,1, t, 1, 1)
+        s_indices = t.arange(max_seq_len).unsqueeze(0).unsqueeze(0).unsqueeze(1).unsqueeze(-1)  # Shape: (1,1, 1, s, 1)
+        q_indices = t.arange(max_seq_len).unsqueeze(0).unsqueeze(0).unsqueeze(0).unsqueeze(0)   # Shape: (1,1, 1, 1, q)
         mask = (t_indices > q_indices) | (s_indices > q_indices)
         return mask
 
@@ -42,9 +43,11 @@ class Trittention(nn.Module):
         v = self.V12(v12)
         v = einops.rearrange(v, "b p s (n h) -> b n h (p s)", n=self.cfg.n_heads)
         attn_score = t.einsum("bsnh, btnh, bqnh -> bnstq", k1,k2,q)
+        pre_as = attn_score.clone()
         
         if self.cfg.causal_attn:
             attn_score = self.apply_causal_mask(attn_score)
+        post_as = attn_score.clone()
         attn_score = einops.rearrange(attn_score, "b n s t q -> b n q (s t)")/self.cfg.d_head
         
         attn_score = attn_score.softmax(dim=-1)
@@ -52,7 +55,7 @@ class Trittention(nn.Module):
         z = t.einsum('bnql, bnhl -> bqnh', attn_score, v)
         z = self.HeadOutputs(z)
         out = self.Out(z.reshape(bs,ts,-1))
-        return out
+        return out, pre_as, post_as
 
 
     def apply_causal_mask(
@@ -62,7 +65,7 @@ class Trittention(nn.Module):
         Applies a causal mask to attention scores, and returns masked scores.
         '''
         b, nn, tt, s, q = attn_scores.shape
-        mask = self.precomputed_mask[:, :tt, :s, :q].to(attn_scores.device)
+        mask = self.precomputed_mask[:,:, :tt, :s, :q].to(attn_scores.device)
         mask = self.Mask(mask)
         attn_scores.masked_fill_(mask, self.IGNORE)
         return attn_scores
