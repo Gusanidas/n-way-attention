@@ -66,7 +66,7 @@ class MixedAttention(nn.Module):
         look_around_kwargs = dict(backward=self.cfg.look_backward, forward=0, pad_value=self.pad_value)
         attn_pattern = t.einsum('b h n d, b h m d, b h l d -> b h n m l', c, look_around(a, **look_around_kwargs), look_around(b, **look_around_kwargs))
         attn_pattern.masked_fill_(self.causal_mask, self.IGNORE)
-        attn_pattern[attn_pattern ==0] = self.IGNORE
+        attn_pattern[attn_pattern ==self.pad_value] = self.IGNORE.to(attn_pattern.dtype)
         attn_pattern_shape = attn_pattern.shape
         attn_pattern = rearrange(attn_pattern, 'b h n m l -> b h n (m l)')
         attn_pattern = attn_pattern / self.cfg.dt_head
