@@ -91,8 +91,6 @@ class Trittention(nn.Module):
             mask = (t_indices > q_indices) | (s_indices > q_indices)
             if self.cfg.order_attn:
                 mask = mask | (t_indices >= s_indices)
-            else:
-                mask = mask | (t_indices == s_indices)
         else:
             if self.cfg.order_attn:
                 mask = (t_indices >= q_indices) | (s_indices >= q_indices) | (t_indices >= s_indices)
