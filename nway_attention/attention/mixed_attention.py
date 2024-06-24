@@ -5,7 +5,7 @@ from torch import Tensor
 import torch.nn as nn
 from torch.utils.checkpoint import checkpoint
 from jaxtyping import Float
-from nway_attention.utils_misc import apply_rotary_emb, pad_to_multiple, look_around
+from nway_attention.utils_misc import apply_rotary_emb, pad_to_multiple, look_around, precompute_freqs_cis
 from nway_attention.cfgs import Config
 
 
