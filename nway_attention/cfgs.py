@@ -28,7 +28,6 @@ class Config:
     look_backward: int = 1
     pad_value: int = 0
     autopad: bool = True
-    freqs_cis: list = None
 
     def to_dict(self) -> dict:
         """Converts the dataclass instance to a dictionary."""

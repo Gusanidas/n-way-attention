@@ -15,7 +15,6 @@ class MixedAttention(nn.Module):
     def __init__(self, cfg: Config):
         super().__init__()
         self.cfg = cfg
-        self.freqs_cis = t.as_tensor(getattr(cfg, 'freqs_cis', None))
         self.device = t.device('cuda' if t.cuda.is_available() else 'cpu')
         self.pad_value = getattr(cfg, 'pad_value', 0)
         self.autopad = getattr(cfg, 'autopad', True)
@@ -23,6 +22,8 @@ class MixedAttention(nn.Module):
         self.causal_mask = self.get_causal_mask(self.cfg.n_ctx).to(self.device)
         self.ts_cm = self.cfg.n_ctx
         self.checkpoint = getattr(cfg, 'checkpoint',False)
+
+        self.freqs_cis = precompute_freqs_cis(cfg.d_head, 2*cfg.n_ctx).to(self.device)
 
         self.qkv = nn.Linear(cfg.d_model, 3*cfg.d_head*cfg.n_heads)
         self.abcde = nn.Linear(cfg.d_model, 5*cfg.dt_head*cfg.nt_heads) if cfg.nt_heads > 0 else None
