@@ -23,7 +23,7 @@ class MixedAttention(nn.Module):
         self.ts_cm = self.cfg.n_ctx
         self.checkpoint = getattr(cfg, 'checkpoint',False)
 
-        self.freqs_cis = precompute_freqs_cis(cfg.d_head, 2*cfg.n_ctx).to(self.device)
+        self.freqs_cis = precompute_freqs_cis(cfg.d_head, cfg.n_ctx).to(self.device)
 
         self.qkv = nn.Linear(cfg.d_model, 3*cfg.d_head*cfg.n_heads)
         self.abcde = nn.Linear(cfg.d_model, 5*cfg.dt_head*cfg.nt_heads) if cfg.nt_heads > 0 else None
@@ -95,12 +95,12 @@ class MixedAttention(nn.Module):
 if __name__ == '__main__':
     from nway_attention.cfgs import Config
     from nway_attention.utils_misc import precompute_freqs_cis
-    cfg = Config(freqs_cis=precompute_freqs_cis(Config.d_head, Config.n_ctx))
+    cfg = Config()
     model = MixedAttention(cfg)
     x = t.randn(12, cfg.n_ctx, cfg.d_model)
     y = model(x)
     print(y.shape)
-    cfg = Config(dt_head=64, nt_heads=0, freqs_cis=precompute_freqs_cis(Config.d_head, Config.n_ctx))
+    cfg = Config(dt_head=64, nt_heads=0)
     model = MixedAttention(cfg)
     x = t.randn(12, cfg.n_ctx, cfg.d_model)
     y = model(x)

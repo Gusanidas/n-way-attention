@@ -155,7 +155,7 @@ if __name__ == "__main__":
         with_ln=True,
         order_attn=True,
         attn_eq=True,
-        attn_type = 'Trittention',
+        attn_type = 'mixedattention',
     )
 
     model = Transformer(model_cfg.to_dict())
