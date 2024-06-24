@@ -23,7 +23,7 @@ class Config:
     is_gated: bool = False
     has_mlp: bool = True
     order_attn: bool = True
-    attn_eq: bool = False
+    attn_eq: bool = True
     window_size: int = 16
     look_backward: int = 1
     pad_value: int = 0

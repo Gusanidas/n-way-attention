@@ -155,9 +155,11 @@ if __name__ == "__main__":
         with_ln=True,
         order_attn=True,
         attn_eq=True,
+        attn_type = 'Trittention',
     )
 
-    model = TriformerMixed(model_cfg.to_dict())
+    model = Transformer(model_cfg.to_dict())
     x = t.randint(0, 101, (32, 48))
+    print(f"Input shape: {x.shape}")
     y = model(x)
     print(y.shape)

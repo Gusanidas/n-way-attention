@@ -30,3 +30,11 @@ class Attention(nn.Module):
         # output projection
         y = self.c_proj(y)
         return y
+
+
+if __name__ == "__main__":
+    cfg = Config()
+    model = Attention(cfg)
+    x = t.randn(12, 1024, 768)
+    y = model(x)
+    print(y.shape)
