@@ -43,11 +43,9 @@ class Trittention(nn.Module):
         v = self.V12(v12)
         v = einops.rearrange(v, "b p s (n h) -> b n h (p s)", n=self.cfg.n_heads)
         attn_score = t.einsum("bsnh, btnh, bqnh -> bnstq", k1,k2,q)
-        pre_as = attn_score.clone()
         
         if self.cfg.causal_attn:
             attn_score = self.apply_causal_mask(attn_score)
-        post_as = attn_score.clone()
         attn_score = einops.rearrange(attn_score, "b n s t q -> b n q (s t)")/self.cfg.d_head
         
         attn_score = attn_score.softmax(dim=-1)
@@ -55,7 +53,7 @@ class Trittention(nn.Module):
         z = t.einsum('bnql, bnhl -> bqnh', attn_score, v)
         z = self.HeadOutputs(z)
         out = self.Out(z.reshape(bs,ts,-1))
-        return out, pre_as, post_as
+        return out
 
 
     def apply_causal_mask(
