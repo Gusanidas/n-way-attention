@@ -67,6 +67,9 @@ def apply_rotary_emb(x: torch.Tensor, freqs_cis: torch.Tensor) -> torch.Tensor:
                           -1)
     return x_out
 
+def find_multiple(x, multiple):
+    return math.ceil(x / multiple) * multiple
+
 def pad_to_multiple(tensor, multiple, dim=-1, value=0):
     seqlen = tensor.shape[dim]
     m = seqlen / multiple

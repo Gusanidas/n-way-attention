@@ -5,7 +5,7 @@ from torch import Tensor
 import torch.nn as nn
 from torch.utils.checkpoint import checkpoint
 from jaxtyping import Float
-from nway_attention.utils_misc import apply_rotary_emb, pad_to_multiple, look_around, precompute_freqs_cis
+from nway_attention.utils_misc import apply_rotary_emb, pad_to_multiple, look_around, precompute_freqs_cis, find_multiple
 from nway_attention.cfgs import Config
 
 
@@ -33,9 +33,6 @@ class MixedAttention(nn.Module):
 
     def forward(self, normalized_resid_pre: t.Tensor) -> t.Tensor:
         b, ts, ds = normalized_resid_pre.shape
-        #recompute the mask
-        if 2*self.cfg.window_size != self.causal_mask.shape[-1] or ts != self.ts_cm:
-            self.causal_mask = self.get_causal_mask(ts).to(self.device)
         q, k, v = self.qkv(normalized_resid_pre).chunk(3, dim=-1)
         q, k ,v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.cfg.n_heads), (q, k, v))
         q, k = apply_rotary_emb(q, freqs_cis = self.freqs_cis), apply_rotary_emb(k, freqs_cis = self.freqs_cis)
@@ -58,6 +55,9 @@ class MixedAttention(nn.Module):
 
     
     def compute_tri_z(self, a,b,c,d,e):
+        _,_,ts,_ = a.shape
+        if 2*self.cfg.window_size != self.causal_mask.shape[-1] or ts > self.ts_cm:
+            self.causal_mask = self.get_causal_mask(ts).to(self.device)
         (a, packed_shape), (b, _), (c, _), (d, _), (e, _) = map(lambda t: pack([t], '* n d'), (a, b, c, d, e))
         if self.autopad:
             orig_seq_len = a.shape[1]
@@ -65,13 +65,13 @@ class MixedAttention(nn.Module):
         a, b, c, d, e = map(lambda t: rearrange(t, 'b (n w) d -> b n w d', w = self.cfg.window_size), (a, b, c, d, e))  
         look_around_kwargs = dict(backward=self.cfg.look_backward, forward=0, pad_value=self.pad_value)
         attn_pattern = t.einsum('b h n d, b h m d, b h l d -> b h n m l', c, look_around(a, **look_around_kwargs), look_around(b, **look_around_kwargs))
-        attn_pattern.masked_fill_(self.causal_mask, self.IGNORE)
+        bs,hs,ns,ms,ls = attn_pattern.shape
+        attn_pattern.masked_fill_(self.causal_mask[:,:hs,:ns,:ms,:ls], self.IGNORE)
         attn_pattern[attn_pattern ==self.pad_value] = self.IGNORE.to(attn_pattern.dtype)
-        attn_pattern_shape = attn_pattern.shape
         attn_pattern = rearrange(attn_pattern, 'b h n m l -> b h n (m l)')
         attn_pattern = attn_pattern / self.cfg.dt_head
         attn_score = F.softmax(attn_pattern, dim = -1)
-        attn_score = t.reshape(attn_score, attn_pattern_shape)
+        attn_score = t.reshape(attn_score, (bs, hs, ns, ms, ls))
         z = t.einsum('b h n m l, b h m d -> b h n d', attn_score, look_around(d, **look_around_kwargs))
         z += t.einsum('b h n m l, b h l d -> b h n d', attn_score, look_around(e, **look_around_kwargs))
         z = rearrange(z, '(b h) w l d ->b (w l) (h d)', h=self.cfg.nt_heads)
@@ -80,6 +80,8 @@ class MixedAttention(nn.Module):
         return z
 
     def get_causal_mask(self, ts):
+        print(f"get_causal_mask: ts={ts}, window_size={self.cfg.window_size}")
+        ts = find_multiple(ts, self.cfg.window_size)
         self.ts_cm = ts
         seq = t.arange(ts, device=self.device)
         windows = ts // self.cfg.window_size 
@@ -91,17 +93,21 @@ class MixedAttention(nn.Module):
         causal_mask = ((rearrange(b_t, '... i -> ... i 1 1') < rearrange(bb_t, '... k -> ... 1 1 k')) |
                        (rearrange(bb_t, '... k -> ... 1 1 k') < rearrange(ba_t, '... j -> ... 1 j 1')))
         return causal_mask
-    
+
 if __name__ == '__main__':
     from nway_attention.cfgs import Config
     from nway_attention.utils_misc import precompute_freqs_cis
-    cfg = Config()
+    cfg = Config(n_ctx=128)
     model = MixedAttention(cfg)
-    x = t.randn(12, cfg.n_ctx-3, cfg.d_model)
+    x = t.randn(12, cfg.n_ctx, cfg.d_model)
+    y = model(x)
+    x = t.randn(12, cfg.n_ctx-1, cfg.d_model)
     y = model(x)
     print(y.shape)
     cfg = Config(dt_head=64, nt_heads=0)
     model = MixedAttention(cfg)
+    x = t.randn(12, cfg.n_ctx//2, cfg.d_model)
+    y = model(x)
     x = t.randn(12, cfg.n_ctx, cfg.d_model)
     y = model(x)
     print(y.shape)
