@@ -89,7 +89,7 @@ class MixedAttention(nn.Module):
         bb_t = look_around(b_t, **look_around_kwargs)
         ba_t = look_around(b_t, **look_around_kwargs)
         causal_mask = ((rearrange(b_t, '... i -> ... i 1 1') < rearrange(bb_t, '... k -> ... 1 1 k')) |
-                       (rearrange(bb_t, '... k -> ... 1 1 k') <= rearrange(ba_t, '... j -> ... 1 j 1')))
+                       (rearrange(bb_t, '... k -> ... 1 1 k') < rearrange(ba_t, '... j -> ... 1 j 1')))
         return causal_mask
     
 if __name__ == '__main__':
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     from nway_attention.utils_misc import precompute_freqs_cis
     cfg = Config()
     model = MixedAttention(cfg)
-    x = t.randn(12, cfg.n_ctx, cfg.d_model)
+    x = t.randn(12, cfg.n_ctx-3, cfg.d_model)
     y = model(x)
     print(y.shape)
     cfg = Config(dt_head=64, nt_heads=0)
