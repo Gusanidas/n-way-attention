@@ -55,7 +55,6 @@ nest-asyncio==1.6.0
 networkx==3.2.1
 nnsight==0.2.15
 numpy==1.26.4
--e git+ssh://git@github.com/Gusanidas/n-way-attention.git@3bcda3f32ab5f9621f743b2e29ebaa42608b33ac#egg=nway_attention
 packaging==24.0
 pandas==2.2.1
 parso==0.8.4

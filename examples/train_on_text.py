@@ -102,7 +102,7 @@ def get_lr(it, warmup_steps, max_steps, max_lr, min_lr):
 
 def train(model_a, train_loader, val_loader, optimizer, criterion, device, config, compile=False, wandb_logging=False):
     if wandb_logging:
-        wandb.init(project="jun_tri_512_4", config=config)
+        wandb.init(project="jun_tri_512_4-b", config=config)
     if compile:
         model = torch.compile(model_a)
     else:
@@ -175,10 +175,13 @@ def train(model_a, train_loader, val_loader, optimizer, criterion, device, confi
                     "step": step
                 })
         if step > 3000 and step % 4000 == 3999:
-            if step> 12000:
-                model_a.push_to_hub("tri-fw-512-4b", config=cfg)
-            else:
-                model_a.push_to_hub("tri-fw-512-4", config=cfg)
+            try:
+                if step> 12000:
+                    model_a.push_to_hub("tri-fw-512-4b", config=cfg)
+                else:
+                    model_a.push_to_hub("tri-fw-512-4", config=cfg)
+            except Exception as e:
+                print(f"Error pushing to hub: {e}")
         if step > 1500 and step % 2000 == 0:
             config.accumulation_steps = min(config.accumulation_steps*2, 4)
     return model
