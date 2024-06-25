@@ -10,7 +10,7 @@ license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 torch = "^2.2"
 einops = "^0.8.0"
 jaxtyping = "^0.2.29"
