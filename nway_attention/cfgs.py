@@ -13,7 +13,7 @@ class Config:
     dt_head: int = 64
     d_mlp: int = 3072
     causal_attn: bool = True
-    attn_type: str = 'Attention' # Attention, Trittention, TrittentionCube, MixedAttention
+    attn_type: str = 'Attention' # Attention, Trittention, TrittentionCube, MixedAttention, MixedLocalAttention, MixedAttentionCube
     n_heads: int = 12
     nt_heads: int = 2
     n_layers: int = 12

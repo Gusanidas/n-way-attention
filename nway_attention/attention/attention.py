@@ -1,9 +1,5 @@
-import einops
 import torch as t
-from torch import Tensor
 import torch.nn as nn
-import numpy as np
-from jaxtyping import Float
 from nway_attention.cfgs import Config
 import torch.nn.functional as F
 

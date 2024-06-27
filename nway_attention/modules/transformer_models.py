@@ -10,6 +10,7 @@ from huggingface_hub import PyTorchModelHubMixin
 from nway_attention.attention.attention import Attention
 from nway_attention.attention.trittention import Trittention
 from nway_attention.attention.trittention_cube import TrittentionCube
+from nway_attention.attention.mixed_local_attention import MixedLocalAttention
 from nway_attention.cfgs import Config
 from nway_attention.utils_misc import precompute_freqs_cis
 from nway_attention.attention.mixed_attention import MixedAttention
@@ -87,14 +88,21 @@ class TransformerBlock(nn.Module):
         return resid
     
     def _get_attention(self, cfg, freqs_cis=None):
-        if cfg.attn_type.lower() == 'attention':
+        # Accept mixed-attention, mixed_attention, mixedattention ...
+        attn_type = cfg.attn_type.lower().replace('_', '').replace('-', '')
+
+        if attn_type == 'attention':
             return Attention(cfg)
-        elif cfg.attn_type.lower() == 'trittention':
+        elif attn_type in ['trittention', 'trittion']:
             return Trittention(cfg)
-        elif cfg.attn_type.lower() == 'trittentioncube':
+        elif attn_type in ['trittentioncube', 'trittioncube']:
             return TrittentionCube(cfg)
-        elif cfg.attn_type.lower() == 'mixedattention':
-            return MixedAttention(cfg)
+        elif attn_type == 'mixedattention':
+            return MixedAttention(cfg, cube=False)
+        elif attn_type == 'mixedattentioncube':
+            return MixedAttention(cfg, cube=True)
+        elif attn_type == 'mixedlocalattention':
+            return MixedLocalAttention(cfg)
         else:
             raise ValueError(f"Attention type {cfg.attn_type} not recognized.")
 
@@ -155,7 +163,7 @@ if __name__ == "__main__":
         with_ln=True,
         order_attn=True,
         attn_eq=True,
-        attn_type = 'mixedattention',
+        attn_type = 'mixed_local_attention',
     )
 
     model = Transformer(model_cfg.to_dict())

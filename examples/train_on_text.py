@@ -37,7 +37,8 @@ else:
 enc = tiktoken.get_encoding("gpt2")
 eot = enc._special_tokens['<|endoftext|>'] # end of text token
 
-
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 class DataLoaderLite:
     def __init__(self, B, T, split, data_dir='edu_fineweb10B/'):
         self.B = B  # batch size
@@ -90,19 +91,31 @@ class DataLoaderLite:
 
 
 
-def get_lr(it, warmup_steps, max_steps, max_lr, min_lr):
+
+def get_lr(it, warmup_steps, max_steps, max_lr, min_lr, oscillation_period=2000):
     if it < warmup_steps:
         return max_lr * (it + 1) / warmup_steps
     if it > max_steps:
         return min_lr
+    
     decay_ratio = (it - warmup_steps) / (max_steps - warmup_steps)
     assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  
-    return min_lr + coeff * (max_lr - min_lr)
+    
+    # Basic cosine annealing
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    
+    # Add oscillation
+    oscillation = 0.2 * math.sin(2 * math.pi * it / oscillation_period)
+    
+    # Combine cosine annealing with oscillation
+    lr = min_lr + (coeff + oscillation) * (max_lr - min_lr)
+    
+    # Ensure learning rate stays within bounds
+    return max(min(lr, max_lr), min_lr)
 
 def train(model_a, train_loader, val_loader, optimizer, criterion, device, config, compile=False, wandb_logging=False):
     if wandb_logging:
-        wandb.init(project="jun_tri_512_4-b", config=config)
+        wandb.init(project="jun_triC_384_2", config=config)
     if compile:
         model = torch.compile(model_a)
     else:
@@ -110,7 +123,7 @@ def train(model_a, train_loader, val_loader, optimizer, criterion, device, confi
     model.to(device)
     t0 = time.time()
     n2, rl = 0, 0
-    for step in range(config.max_steps):
+    for step in range(25_000):#config.max_steps):
         # Update learning rate
         lr = get_lr(step, config.warmup_steps, config.max_steps, config.max_lr, config.min_lr)
         for param_group in optimizer.param_groups:
@@ -135,11 +148,13 @@ def train(model_a, train_loader, val_loader, optimizer, criterion, device, confi
                 modelg = Transformer(cfg.to_dict())
                 modelg.load_state_dict(model_a.state_dict())
                 modelg.to(device)
-                textg = generate_text(modelg, device, config, enc)
+                for i in range(5):
+                    textg = generate_text(modelg, device, config, enc)
+                    print(f"Generated text: {textg}")
                 del modelg
             else:
                 textg = generate_text(model, device, config, enc)
-            print(f"Generated text: {textg}")
+                print(f"Generated text: {textg}")
             if wandb_logging:
                 wandb.log({"generated_text": textg, "step": step})
         model.train()
@@ -177,20 +192,24 @@ def train(model_a, train_loader, val_loader, optimizer, criterion, device, confi
         if step > 3000 and step % 4000 == 3999:
             try:
                 if step> 12000:
-                    model_a.push_to_hub("tri-fw-512-4b", config=cfg)
+                    model_a.push_to_hub("triC-fw-384-3", config=cfg)
                 else:
-                    model_a.push_to_hub("tri-fw-512-4", config=cfg)
+                    model_a.push_to_hub("triC-fw-384-3", config=cfg)
             except Exception as e:
                 print(f"Error pushing to hub: {e}")
-        if step > 1500 and step % 2000 == 0:
-            config.accumulation_steps = min(config.accumulation_steps*2, 4)
+        if step > 500 and step % 2500 == 0:
+            config.accumulation_steps = min(config.accumulation_steps+1, 4)
     return model
 
 
 def generate_text(model, device, config, enc):
     model.eval()
-    if random.random() < 0.33:
+    if random.random() < 0.2:
         start_sentence = "Once upon a time, in a far away land "
+    elif random.random() < 0.3:
+        start_sentence = "The capital of France is"
+    elif random.random() < 0.35:
+        start_sentence = "In theory, the Earth revolves around"
     elif random.random()<0.5:
         start_sentence = "Hello, I'm a language model"
     else:
@@ -199,7 +218,7 @@ def generate_text(model, device, config, enc):
     context = torch.tensor(start_tokens, dtype=torch.long, device=device).unsqueeze(0)
 
     sample_rng = torch.Generator(device=device)
-    sample_rng.manual_seed(24)  # Add a seed to config for reproducibility
+    sample_rng.manual_seed(random.randint(1,43))  # Add a seed to config for reproducibility
 
     with torch.no_grad():
         for _ in range(config.max_new_tokens):
@@ -218,43 +237,52 @@ def generate_text(model, device, config, enc):
     generated_text = enc.decode(context[0].tolist())
     return generated_text
 
+
+B, T = 512, 32
 cfg = Config(
-    d_model = 512,
+    d_model = 384,
+    d_mlp = 1536,
     d_head = 64,
-    n_heads = 8,
-    n_layers = 4,
+    dt_head=64,
+    n_heads = 4,
+    nt_heads=2,
+    n_layers = 2,
+    n_ctx=B,
     dropout = 0.1,
     d_vocab = 50304,
     #attn_type = "Attention",
-    attn_type = "Trittention",
+    attn_type = "MixedTrittentionCube",
     attn_eq = True,
     order_attn = False,
+    is_gated=False,
 )
 
 model = Transformer(cfg.to_dict())
 
 
-B, T = 384, 64
-optimizer = torch.optim.AdamW(model.parameters(), betas=(0.9, 0.98), lr=1e-5, weight_decay=0.1)
+optimizer = torch.optim.AdamW(model.parameters(), betas=(0.9, 0.95), lr=1e-5, weight_decay=0.1)
 criterion = nn.CrossEntropyLoss()
 train_loader = DataLoaderLite(B=B, T=T, split="train")
 train_loader.current_shard = 1
 val_loader = DataLoaderLite(B=B, T=T, split="val")
 class TrainConfig:
-  max_steps = 22_000
-  warmup_steps = 5_000
-  min_lr = 7e-6
-  max_lr = 7e-4
-  val_interval = 2_000
-  val_steps = 200
+  max_steps = 42_000
+  warmup_steps = 6000
+  min_lr = 1e-6
+  max_lr = 5e-5
+  val_interval = 500
+  val_steps = 30
   generate_interval = 2_000
-  log_interval = 250
+  log_interval = 200
   max_grad_norm = 1.0
   start_tokens = [1]  # <|endoftext|>
   max_new_tokens = 50
-  accumulation_steps = 1
+  accumulation_steps = 2
 
 
 config = TrainConfig()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"model = {model}") 
+print("---====----====++++----")
+print(f"number of parameters = {count_parameters(model)}")
 train(model, train_loader, val_loader, optimizer, criterion, device, config, compile = True, wandb_logging=True)
