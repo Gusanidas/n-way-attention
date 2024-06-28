@@ -112,7 +112,7 @@ I have copied from the following repos:
 - [Callum McDougall's ARENA 2.0](https://github.com/callummcdougall/ARENA_2.0)
 - [LucidRains ViT](https://github.com/lucidrains/vit-pytorch?tab=readme-ov-file#distillation)
 - [Conceptofmind's ViT Jax](https://github.com/conceptofmind/vit-flax)
+- [Build nanoGPT](https://github.com/karpathy/build-nanogpt)
 
-The concept I had not see it before, but that may be entirely my fault.
 
 
