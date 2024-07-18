@@ -73,11 +73,11 @@ def find_multiple(x, multiple):
 def pad_to_multiple(tensor, multiple, dim=-1, value=0):
     seqlen = tensor.shape[dim]
     m = seqlen / multiple
-    if m.is_integer():
+    if seqlen % multiple == 0:
         return False, tensor
     remainder = math.ceil(m) * multiple - seqlen
     pad_offset = (0,) * (-1 - dim) * 2
-    return True, F.pad(tensor, (*pad_offset, 0, remainder), value = value)
+    return True, F.pad(tensor, (*pad_offset, 0, remainder), value=value)
 
 def look_around(x, backward = 1, forward = 0, pad_value = -1, dim = 2):
     ts = x.shape[1]

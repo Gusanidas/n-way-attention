@@ -114,7 +114,11 @@ class Transformer(nn.Module, PyTorchModelHubMixin):
         self.pos_embed = PosEmbed(self.cfg)
         self.blocks = self._get_blocks(TransformerBlock)
         self.ln_final = nn.LayerNorm(self.cfg.d_model) if self.cfg.with_ln else nn.Identity()
-        self.unembed = Unembed(self.cfg)
+        if self.cfg.share_input_output_embed:
+            self.unembed = nn.Linear(self.cfg.d_model, self.cfg.d_vocab, bias=False)
+            self.unembed.weight = self.embed.W_E
+        else:
+            self.unembed = Unembed(self.cfg)
 
     def _get_blocks(self, block: Type[TransformerBlock], **kwargs) -> nn.ModuleList:
         if self.cfg.mlp_type.lower() == "none":
@@ -164,6 +168,7 @@ if __name__ == "__main__":
         order_attn=True,
         attn_eq=True,
         attn_type = 'mixed_local_attention',
+        share_input_output_embed=True,
     )
 
     model = Transformer(model_cfg.to_dict())

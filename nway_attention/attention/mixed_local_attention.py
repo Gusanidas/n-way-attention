@@ -35,7 +35,8 @@ class MixedLocalAttention(nn.Module):
         b, ts, ds = normalized_resid_pre.shape
         q, k, v = self.qkv(normalized_resid_pre).chunk(3, dim=-1)
         q, k ,v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=self.cfg.n_heads), (q, k, v))
-        q, k = apply_rotary_emb(q, freqs_cis = self.freqs_cis), apply_rotary_emb(k, freqs_cis = self.freqs_cis)
+        if self.cfg.use_rotary:
+            q, k = apply_rotary_emb(q, freqs_cis = self.freqs_cis), apply_rotary_emb(k, freqs_cis = self.freqs_cis)
         z_attn = t.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=None, dropout_p=self.cfg.dropout if self.training else 0, is_causal=True)
         z_attn = rearrange(z_attn, 'b h n d -> b n (h d)')
 
@@ -43,7 +44,8 @@ class MixedLocalAttention(nn.Module):
             abcde = self.abcde(normalized_resid_pre)
             abcde = rearrange(abcde, 'b n (x h d) -> x b h n d', h=self.cfg.nt_heads, x=5)
             a, b, c, d, e = abcde[0], abcde[1], abcde[2], abcde[3], abcde[4]
-            a, b, c = apply_rotary_emb(a, freqs_cis = self.freqs_cis), apply_rotary_emb(b, freqs_cis = self.freqs_cis), apply_rotary_emb(c, freqs_cis = self.freqs_cis)
+            if self.cfg.use_rotary:
+                a, b, c = apply_rotary_emb(a, freqs_cis = self.freqs_cis), apply_rotary_emb(b, freqs_cis = self.freqs_cis), apply_rotary_emb(c, freqs_cis = self.freqs_cis)
             if self.checkpoint:
                 z_tri = checkpoint(self.compute_tri_z, a, b, c, d, e, use_reentrant=self.use_reentrant)
             else:

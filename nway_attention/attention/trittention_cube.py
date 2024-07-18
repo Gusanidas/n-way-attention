@@ -8,25 +8,38 @@ from nway_attention.utils_misc import IdentityModule
 from nway_attention.cfgs import Config
 
 
+import torch as t
+import torch.nn as nn
+
 class TrittentionCube(nn.Module):
     IGNORE: Float[Tensor, ""]
-
     def __init__(self, cfg: Config):
         super().__init__()
         self.cfg = cfg
+        
+        # Initialize all weights with normal distribution
+        self.init_range = cfg.init_range  # Assuming this is the standard deviation you want to use
+
         self.kkqvv = nn.Linear(cfg.d_model, cfg.d_head*cfg.n_heads*5)
+        nn.init.normal_(self.kkqvv.weight, std=self.init_range)
+        nn.init.zeros_(self.kkqvv.bias)
 
         self.W_Kq = nn.Parameter(t.empty((cfg.n_heads, cfg.d_head, cfg.d_head, cfg.d_head)))
+        nn.init.normal_(self.W_Kq, std=self.init_range)
+
         self.W_Vq = nn.Parameter(t.empty((cfg.n_heads, cfg.d_head, cfg.d_head, cfg.d_head)))
+        nn.init.normal_(self.W_Vq, std=self.init_range)
+
         self.b_V = nn.Parameter(t.zeros((cfg.n_heads, cfg.d_head)))
 
-        nn.init.normal_(self.W_Kq, std=self.cfg.init_range)
-        nn.init.normal_(self.W_Vq, std=self.cfg.init_range)
-
         self.Out = nn.Linear(cfg.d_head*cfg.n_heads, cfg.d_model)
+        nn.init.normal_(self.Out.weight, std=self.init_range)
+        nn.init.zeros_(self.Out.bias)
+
         self.Mask = IdentityModule()
         self.AttentionScore = IdentityModule()
         self.HeadOutputs = IdentityModule()
+
         self.register_buffer("IGNORE", t.tensor(-1e6, dtype=t.float32))
         self.register_buffer('precomputed_mask', self.create_causal_mask(cfg.n_ctx))
 
@@ -45,13 +58,19 @@ class TrittentionCube(nn.Module):
 
 
         k1, k2, q, v1, v2 = self.kkqvv(normalized_resid_pre).chunk(5, dim=-1)
-        k1, k2, q, v1, v2 = map(lambda t: einops.rearrange(t, 'b p (h d) -> b p h d', h=self.cfg.n_heads), (k1, k2, q, v1, v2))
-        v = einops.einsum(v1,v2,self.W_Vq,"b p1 n h1, b p2 n h2, n h1 h2 h3 -> b p1 p2 n h3") + self.b_V
-        v = einops.rearrange(v, "b p s n h -> b n h (p s)")
+        k1, k2, q, v1, v2 = map(lambda t: einops.rearrange(t, 'b p (h d) -> b h p d', h=self.cfg.n_heads), (k1, k2, q, v1, v2))
+        v = einops.einsum(v1,v2,self.W_Vq,"b n p1 h1, b n p2 h2, n h1 h2 h3 -> b n p1 p2 h3") #+ self.b_V
+        v = einops.rearrange(v, "b n p s h -> b n h (p s)")
         
-        step1 = t.einsum('brnk, nijk -> bnrij', q, self.W_Kq)
-        step2 = t.einsum('bnrij, bqnj -> bnriq', step1, k2)
-        attn_score = t.einsum('bnriq, bpni -> bnpqr', step2, k1)
+        #step1 = t.einsum('brnk, nijk -> bnrij', q, self.W_Kq)
+        #step2 = t.einsum('bnrij, bqnj -> bnriq', step1, k2)
+        #attn_score = t.einsum('bnriq, bpni -> bnpqr', step2, k1)
+
+        step1 = einops.einsum(k1,k2, self.W_Kq, 'b n p k, b n t j, n k j i -> b n p t i')#, k1, k2, self.W_Kq)
+        attn_score = einops.einsum(step1, q, 'b n p t i, b n q i -> b n p t q')#, step1, q)
+        
+        # attn_score = einops.einsum(k1, k2, q, self.W_Kq, "b n s i, b n t j, b n q k, n i j k -> b n s t q")
+        #attn_score = t.einsum("bsni, btnj, bqnk, nijk -> bnstq", k1,k2,q, self.W_Kq)
         if self.cfg.causal_attn:
             attn_score = self.apply_causal_mask(attn_score)
         attn_score = einops.rearrange(attn_score, "b n s t q -> b n q (s t)")/self.cfg.d_head

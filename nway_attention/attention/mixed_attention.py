@@ -15,7 +15,9 @@ class MixedAttention(nn.Module):
         tritt_cfg = Config.from_dict(cfg.to_dict())
         tritt_cfg.d_head = cfg.dt_head
         tritt_cfg.n_heads = cfg.nt_heads
-        if cube:
+        if cfg.nt_heads <1:
+            self.trittention = nn.Identity()
+        elif cube:
             self.trittention = TrittentionCube(tritt_cfg)
         else:
             self.trittention = Trittention(tritt_cfg)

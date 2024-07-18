@@ -28,6 +28,8 @@ class Config:
     look_backward: int = 1
     pad_value: int = 0
     autopad: bool = True
+    share_input_output_embed: bool = False
+    use_rotary: bool = True
 
     def to_dict(self) -> dict:
         """Converts the dataclass instance to a dictionary."""
