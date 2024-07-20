@@ -101,8 +101,20 @@ In "compare.py" I initialize a layer at random and train another one to try to m
 
 ### Language Model
 
-The complexity of trittention is O(n^3), so its unusable for any kind of text sequence. I have implemented a local attention version in local_trittention.py. And in mixed_attention.py an attention layer that has a number of local trittention heads and normal attention heads.
-I am training some models with mixed attention, but I have limited compute and they are not very impressive so far.
+I evaluate two models of size:
+  - hidden_dimension = 768
+  - mlp_dimension = 3072
+  - n_heads = 12
+  - dim_head = 64
+
+The first one is a transformer like gpt2, and the second one has two of the 12 heads being local trittention heads of window size 32. There is a small difference in the number of parameters between the two.
+
+- Transformer: 124.5 M
+- Transformer with local trittention: 126.8 M
+
+I train them on ~30bn tokens from [fineweb-edu](https://huggingface.co/spaces/HuggingFaceFW/blogpost-fineweb-v1) :sample-10bt (~3 epochs) in a Nvidia A-100. Both models use the same batch_size (~525k tokens) and seq_len of 1024, both training runs see the same data in the same order.
+
+
 
 ## Acknowlegments
 I have copied from the following repos:
