@@ -114,7 +114,11 @@ The first one is a transformer like gpt2, and the second one has two of the 12 h
 
 I train them on ~30bn tokens from [fineweb-edu](https://huggingface.co/spaces/HuggingFaceFW/blogpost-fineweb-v1) :sample-10bt (~3 epochs) in a Nvidia A-100. Both models use the same batch_size (~525k tokens) and seq_len of 1024, both training runs see the same data in the same order.
 
+![Running Average Train Loss](rl.png)
+![Hella swagg score](hellaswag.png)
+![Validation loss](val_loss.png)
 
+There is very little difference, and it may be due to the extra parameters.
 
 ## Acknowlegments
 I have copied from the following repos:
