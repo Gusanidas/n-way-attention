@@ -9,6 +9,7 @@ from huggingface_hub import PyTorchModelHubMixin
 
 from nway_attention.attention.attention import Attention
 from nway_attention.attention.trittention import Trittention
+from nway_attention.attention.differential_trittention import DifferentialTrittention
 from nway_attention.attention.trittention_cube import TrittentionCube
 from nway_attention.attention.mixed_local_attention import MixedLocalAttention
 from nway_attention.cfgs import Config
@@ -97,6 +98,8 @@ class TransformerBlock(nn.Module):
             return Trittention(cfg)
         elif attn_type in ['trittentioncube', 'trittioncube']:
             return TrittentionCube(cfg)
+        elif attn_type == 'differentialtrittention':
+            return DifferentialTrittention(cfg)
         elif attn_type == 'mixedattention':
             return MixedAttention(cfg, cube=False)
         elif attn_type == 'mixedattentioncube':
