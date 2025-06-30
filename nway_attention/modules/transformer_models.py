@@ -12,6 +12,7 @@ from nway_attention.attention.trittention import Trittention
 from nway_attention.attention.differential_trittention import DifferentialTrittention
 from nway_attention.attention.trittention_cube import TrittentionCube
 from nway_attention.attention.mixed_local_attention import MixedLocalAttention
+from nway_attention.attention.trittention_dotsum_gatedv import Trittention as TrittentionDotsumGatedv
 from nway_attention.cfgs import Config
 from nway_attention.utils_misc import precompute_freqs_cis
 from nway_attention.attention.mixed_attention import MixedAttention
@@ -96,9 +97,11 @@ class TransformerBlock(nn.Module):
             return Attention(cfg)
         elif attn_type in ['trittention', 'trittion']:
             return Trittention(cfg)
+        elif attn_type in ['trittentiondotsumgatedv', 'trittention_dotsum_gatedv']:
+            return TrittentionDotsumGatedv(cfg)
         elif attn_type in ['trittentioncube', 'trittioncube']:
             return TrittentionCube(cfg)
-        elif attn_type == 'differentialtrittention':
+        elif attn_type in ['differentialtrittention', 'differentialtrittion', 'differential_trittention']:
             return DifferentialTrittention(cfg)
         elif attn_type == 'mixedattention':
             return MixedAttention(cfg, cube=False)
@@ -170,7 +173,7 @@ if __name__ == "__main__":
         with_ln=True,
         order_attn=True,
         attn_eq=True,
-        attn_type = 'mixed_local_attention',
+        attn_type = 'differential_trittention',
         share_input_output_embed=True,
     )
 

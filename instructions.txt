@@ -1,0 +1,5 @@
+In nway_attention/attention I have added a new type of attention, trittention_dotsum_gatedv.py.
+
+Can you modify the transformer_models.py file to use this new attention?
+
+Thank you!
